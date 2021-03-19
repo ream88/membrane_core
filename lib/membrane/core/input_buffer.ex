@@ -39,7 +39,7 @@ defmodule Membrane.Core.InputBuffer do
 
   defstruct q: nil,
             log_tag: nil,
-            preferred_size: 100,
+            preferred_size: 20,
             current_size: 0,
             demand: nil,
             min_demand: nil,
