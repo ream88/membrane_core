@@ -39,7 +39,7 @@ defmodule Membrane.Core.InputBuffer do
 
   defstruct q: nil,
             log_tag: nil,
-            preferred_size: 20,
+            preferred_size: 100,
             current_size: 0,
             demand: nil,
             min_demand: nil,
@@ -135,6 +135,7 @@ defmodule Membrane.Core.InputBuffer do
 
     %__MODULE__{current_size: size} = input_buf = do_store_buffers(input_buf, v)
 
+    report_mailbox_size("mailbox", Process.info(self())[:message_queue_len], input_buf)
     report_buffer_size("store", size, input_buf)
     input_buf
   end
@@ -200,6 +201,7 @@ defmodule Membrane.Core.InputBuffer do
         :ok
     end
 
+    report_mailbox_size("mailbox", Process.info(self())[:message_queue_len], input_buf)
     report_buffer_size("store", size, input_buf)
 
     input_buf
@@ -211,6 +213,7 @@ defmodule Membrane.Core.InputBuffer do
       when type in @non_buf_types do
     "Storing #{type}" |> mk_log(input_buf) |> Membrane.Logger.debug_verbose()
 
+    report_mailbox_size("mailbox", Process.info(self())[:message_queue_len], input_buf)
     report_buffer_size("store", size, input_buf)
 
     %__MODULE__{input_buf | q: q |> @qe.push({:non_buffer, type, v})}
@@ -332,6 +335,18 @@ defmodule Membrane.Core.InputBuffer do
         element_path:
           ComponentPath.get_formatted() <>
             "/" <> (log_tag || ""),
+        method: method,
+        value: size
+      },
+      %{}
+    )
+  end
+
+  defp report_mailbox_size(method, size, %__MODULE__{log_tag: log_tag}) do
+    :telemetry.execute(
+      Telemetry.mailbox_size_event_name(),
+      %{
+        element_path: ComponentPath.get_formatted() <> "/" <> (log_tag || ""),
         method: method,
         value: size
       },
