@@ -32,6 +32,7 @@ defmodule Membrane.Core.InputBuffer do
           current_size: non_neg_integer(),
           demand: non_neg_integer(),
           min_demand: pos_integer(),
+          max_demand: pos_integer(),
           metric: module(),
           toilet?: boolean(),
           toilet_props: %{:warn => pos_integer, :fail => pos_integer}
@@ -43,6 +44,7 @@ defmodule Membrane.Core.InputBuffer do
             current_size: 0,
             demand: nil,
             min_demand: nil,
+            max_demand: nil,
             metric: nil,
             toilet?: false,
             toilet_props: nil
@@ -94,13 +96,14 @@ defmodule Membrane.Core.InputBuffer do
   def init(demand_unit, demand_pid, demand_pad, log_tag, props) do
     metric = Buffer.Metric.from_unit(demand_unit)
     preferred_size = props[:preferred_size] || metric.input_buf_preferred_size
-    min_demand = props[:min_demand] || preferred_size |> div(4)
+    demand_chunk = props[:min_demand] || preferred_size |> div(4)
 
     %__MODULE__{
       q: @qe.new(),
       log_tag: log_tag,
       preferred_size: preferred_size,
-      min_demand: min_demand,
+      min_demand: demand_chunk,
+      max_demand: demand_chunk,
       demand: preferred_size,
       metric: metric,
       toilet?: false,
@@ -289,14 +292,15 @@ defmodule Membrane.Core.InputBuffer do
            current_size: size,
            preferred_size: pref_size,
            demand: demand,
-           min_demand: min_demand
+           min_demand: min_demand,
+           max_demand: max_demand
          } = input_buf,
          demand_pid,
          linked_output_ref
        )
        when size < pref_size and demand > 0 do
     to_demand = max(demand, min_demand)
-
+    to_demand = min(to_demand, max_demand)
     """
     Sending demand of size #{inspect(to_demand)} to input #{inspect(linked_output_ref)}
     """
