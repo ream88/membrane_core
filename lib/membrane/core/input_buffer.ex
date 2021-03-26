@@ -301,6 +301,7 @@ defmodule Membrane.Core.InputBuffer do
        when size < pref_size and demand > 0 do
     to_demand = max(demand, min_demand)
     to_demand = min(to_demand, max_demand)
+
     """
     Sending demand of size #{inspect(to_demand)} to input #{inspect(linked_output_ref)}
     """

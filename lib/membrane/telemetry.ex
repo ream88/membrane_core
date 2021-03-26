@@ -38,7 +38,6 @@ defmodule Membrane.Telemetry do
   @spec input_buffer_size_event_name() :: event_name_t()
   def input_buffer_size_event_name, do: [:membrane, :input_buffer, :size]
 
-
   @spec mailbox_size_event_name :: event_name_t()
   def mailbox_size_event_name, do: [:membrane, :mailbox, :size]
 

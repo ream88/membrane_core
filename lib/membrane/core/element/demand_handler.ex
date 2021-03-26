@@ -155,8 +155,13 @@ defmodule Membrane.Core.Element.DemandHandler do
       "Sending #{length(buffers)} buffer(s) through pad #{inspect(other_ref)}"
     )
 
-    Message.send(pid, :buffer, buffers, for_pad: other_ref)
-    state = %State{state | buffers_to_send: Map.update!(state.buffers_to_send, {pid, other_ref}, %{})}
+    Message.send(pid, :buffer, Enum.reverse(buffers), for_pad: other_ref)
+
+    state = %State{
+      state
+      | buffers_to_send: Map.update!(state.buffers_to_send, {pid, other_ref}, [])
+    }
+
     {:ok, state}
   end
 

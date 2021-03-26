@@ -450,7 +450,18 @@ defmodule Membrane.Core.Element.ActionHandler do
         pad_data
 
       state = handle_buffer(pad_ref, mode, other_demand_unit, buffers, state)
-      state = %State{buffers_to_send: Map.update(state.buffers_to_send, {pid, other_ref}, buffers, &(buffers ++ &1))}
+
+      state = %State{
+        state
+        | buffers_to_send:
+            Map.update(
+              state.buffers_to_send,
+              {pid, other_ref},
+              buffers,
+              &(Enum.reverse(buffers) ++ &1)
+            )
+      }
+
       {:ok, state}
     else
       buffers: {:error, buf} -> {{:error, {:invalid_buffer, buf}}, state}
