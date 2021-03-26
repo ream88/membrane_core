@@ -142,9 +142,11 @@ defmodule Membrane.Core.Element.DemandHandler do
     with {:ok, state} <- do_supply_demand(pad_ref, %State{state | supplying_demand?: true}) do
       {:ok, state} = handle_delayed_demands(%State{state | supplying_demand?: false})
 
-      Enum.each(state.buffers_to_send, fn {{pid, pad_ref}, buffers} ->
-        send_buffers(pid, pad_ref, buffers, state)
-      end)
+      state =
+        Enum.reduce(state.buffers_to_send, state, fn {{pid, pad_ref}, buffers}, acc ->
+          {:ok, state} = send_buffers(pid, pad_ref, buffers, acc)
+          state
+        end)
 
       {:ok, %State{state | supplying_demand?: false}}
     end
@@ -152,14 +154,14 @@ defmodule Membrane.Core.Element.DemandHandler do
 
   defp send_buffers(pid, other_ref, buffers, state) do
     Membrane.Logger.debug_verbose(
-      "Sending #{length(buffers)} buffer(s) through pad #{inspect(other_ref)}"
+      "1 Sending #{length(buffers)} buffer(s) through pad #{inspect(other_ref)}"
     )
 
     Message.send(pid, :buffer, Enum.reverse(buffers), for_pad: other_ref)
 
     state = %State{
       state
-      | buffers_to_send: Map.update!(state.buffers_to_send, {pid, other_ref}, [])
+      | buffers_to_send: Map.put(state.buffers_to_send, {pid, other_ref}, [])
     }
 
     {:ok, state}

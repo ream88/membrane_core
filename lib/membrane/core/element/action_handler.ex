@@ -76,9 +76,24 @@ defmodule Membrane.Core.Element.ActionHandler do
   defp do_handle_action({:playback_change, :resume}, _cb, _params, state),
     do: PlaybackHandler.continue_playback_change(LifecycleController, state)
 
-  defp do_handle_action({:buffer, {pad_ref, buffers}}, cb, _params, %State{type: type} = state)
-       when type in [:source, :filter] and is_pad_ref(pad_ref) do
+  defp do_handle_action(
+         {:buffer, {_pad_ref, _buffers}},
+         callback,
+         _params,
+         %State{playback: %{state: playback_state}} = state
+       )
+       when playback_state != :playing and callback != :handle_prepared_to_playing do
+    {{:error, {:playback_state, playback_state}}, state}
+  end
+
+  defp do_handle_action({:buffer, {pad_ref, buffers}}, _cb, _params, %State{type: type} = state)
+       when type in [:filter] and is_pad_ref(pad_ref) do
     enqueue_buffer(pad_ref, buffers, state)
+  end
+
+  defp do_handle_action({:buffer, {pad_ref, buffers}}, cb, _params, %State{type: type} = state)
+       when type in [:source] and is_pad_ref(pad_ref) do
+    send_buffer(pad_ref, buffers, cb, state)
   end
 
   defp do_handle_action({:caps, {pad_ref, caps}}, _cb, _params, %State{type: type} = state)
@@ -434,7 +449,7 @@ defmodule Membrane.Core.Element.ActionHandler do
 
   defp enqueue_buffer(pad_ref, buffers, state) when is_list(buffers) do
     Membrane.Logger.debug_verbose(
-      "Sending #{length(buffers)} buffer(s) through pad #{inspect(pad_ref)}"
+      "Queueing #{length(buffers)} buffer(s) to send through pad #{inspect(pad_ref)}"
     )
 
     withl buffers:

@@ -103,7 +103,7 @@ defmodule Membrane.Core.InputBuffer do
       log_tag: log_tag,
       preferred_size: preferred_size,
       min_demand: demand_chunk,
-      max_demand: demand_chunk,
+      max_demand: preferred_size,
       demand: preferred_size,
       metric: metric,
       toilet?: false,
