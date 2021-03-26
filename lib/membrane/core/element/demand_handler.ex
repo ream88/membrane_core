@@ -16,7 +16,7 @@ defmodule Membrane.Core.Element.DemandHandler do
     State
   }
 
-  alias Membrane.Pad
+  alias Membrane.{Pad, Buffer}
 
   require Membrane.Core.Child.PadModel
   require Membrane.Core.Message
@@ -141,8 +141,23 @@ defmodule Membrane.Core.Element.DemandHandler do
   def supply_demand(pad_ref, state) do
     with {:ok, state} <- do_supply_demand(pad_ref, %State{state | supplying_demand?: true}) do
       {:ok, state} = handle_delayed_demands(%State{state | supplying_demand?: false})
+
+      Enum.each(state.buffers_to_send, fn {{pid, pad_ref}, buffers} ->
+        send_buffers(pid, pad_ref, buffers, state)
+      end)
+
       {:ok, %State{state | supplying_demand?: false}}
     end
+  end
+
+  defp send_buffers(pid, other_ref, buffers, state) do
+    Membrane.Logger.debug_verbose(
+      "Sending #{length(buffers)} buffer(s) through pad #{inspect(other_ref)}"
+    )
+
+    Message.send(pid, :buffer, buffers, for_pad: other_ref)
+    state = %State{state | buffers_to_send: Map.update!(state.buffers_to_send, {pid, other_ref}, %{})}
+    {:ok, state}
   end
 
   defp do_supply_demand(pad_ref, state) do

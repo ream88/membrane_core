@@ -78,7 +78,7 @@ defmodule Membrane.Core.Element.ActionHandler do
 
   defp do_handle_action({:buffer, {pad_ref, buffers}}, cb, _params, %State{type: type} = state)
        when type in [:source, :filter] and is_pad_ref(pad_ref) do
-    send_buffer(pad_ref, buffers, cb, state)
+    enqueue_buffer(pad_ref, buffers, state)
   end
 
   defp do_handle_action({:caps, {pad_ref, caps}}, _cb, _params, %State{type: type} = state)
@@ -430,5 +430,37 @@ defmodule Membrane.Core.Element.ActionHandler do
 
     Message.send(watcher, :notification, [name, notification])
     {:ok, state}
+  end
+
+  defp enqueue_buffer(pad_ref, buffers, state) when is_list(buffers) do
+    Membrane.Logger.debug_verbose(
+      "Sending #{length(buffers)} buffer(s) through pad #{inspect(pad_ref)}"
+    )
+
+    withl buffers:
+            :ok <-
+              Bunch.Enum.try_each(buffers, fn
+                %Buffer{} -> :ok
+                value -> {:error, value}
+              end),
+          data: {:ok, pad_data} <- PadModel.get_data(state, pad_ref),
+          dir: %{direction: :output} <- pad_data,
+          eos: %{end_of_stream?: false} <- pad_data do
+      %{mode: mode, pid: pid, other_ref: other_ref, other_demand_unit: other_demand_unit} =
+        pad_data
+
+      state = handle_buffer(pad_ref, mode, other_demand_unit, buffers, state)
+      state = %State{buffers_to_send: Map.update(state.buffers_to_send, {pid, other_ref}, buffers, &(buffers ++ &1))}
+      {:ok, state}
+    else
+      buffers: {:error, buf} -> {{:error, {:invalid_buffer, buf}}, state}
+      data: {:error, reason} -> {{:error, reason}, state}
+      dir: %{direction: dir} -> {{:error, {:invalid_pad_dir, dir}}, state}
+      eos: %{end_of_stream?: true} -> {{:error, {:eos_sent, pad_ref}}, state}
+    end
+  end
+
+  defp enqueue_buffer(pad_ref, buffers, state) do
+    enqueue_buffer(pad_ref, [buffers], state)
   end
 end

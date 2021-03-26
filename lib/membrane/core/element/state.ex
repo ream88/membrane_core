@@ -8,7 +8,7 @@ defmodule Membrane.Core.Element.State do
   use Bunch.Access
 
   alias Bunch.Type
-  alias Membrane.{Clock, Element, Pad, Sync}
+  alias Membrane.{Clock, Element, Pad, Sync, Buffer}
   alias Membrane.Core.{Playback, Timer}
   alias Membrane.Core.Child.{PadModel, PadSpecHandler}
   alias Membrane.Core.Element.PlaybackBuffer
@@ -32,6 +32,7 @@ defmodule Membrane.Core.Element.State do
           playback_buffer: PlaybackBuffer.t(),
           supplying_demand?: boolean(),
           delayed_demands: MapSet.t({Pad.ref_t(), :supply | :redemand}),
+          buffers_to_send: %{Pad.ref_t() => [Buffer.t()]},
           synchronization: %{
             timers: %{Timer.id_t() => Timer.t()},
             parent_clock: Clock.t(),
@@ -54,6 +55,7 @@ defmodule Membrane.Core.Element.State do
     :playback_buffer,
     :supplying_demand?,
     :delayed_demands,
+    :buffers_to_send,
     :synchronization
   ]
 
@@ -81,6 +83,7 @@ defmodule Membrane.Core.Element.State do
       playback_buffer: PlaybackBuffer.new(),
       supplying_demand?: false,
       delayed_demands: MapSet.new(),
+      buffers_to_send: Map.new(),
       synchronization: %{
         parent_clock: options.parent_clock,
         timers: %{},
