@@ -2,7 +2,10 @@ defmodule Membrane.Core.Parent.ClockHandler do
   @moduledoc false
 
   alias Membrane.{Clock, Core, ParentError}
+  alias Membrane.Core.StateDispatcher
   alias Membrane.Core.Parent.ChildEntryParser
+
+  require StateDispatcher
 
   @spec choose_clock(
           [ChildEntryParser.raw_child_entry_t()],
@@ -11,12 +14,12 @@ defmodule Membrane.Core.Parent.ClockHandler do
         ) ::
           Core.Parent.state_t() | no_return
   def choose_clock(children, provider, state) do
-    %{synchronization: synchronization} = state
+    synchronization = StateDispatcher.get_parent(state, :synchronization)
 
     components =
-      case state do
-        %Core.Bin.State{} -> [%{name: Membrane.Parent, clock: synchronization.parent_clock}]
-        %Core.Pipeline.State{} -> []
+      case elem(state, 0) do
+        :bin -> [%{name: Membrane.Parent, clock: synchronization.parent_clock}]
+        :pipeline -> []
       end
 
     components = components ++ children
@@ -33,8 +36,12 @@ defmodule Membrane.Core.Parent.ClockHandler do
     do: set_clock_provider(%{clock: nil, provider: nil, choice: :auto}, state)
 
   defp set_clock_provider(clock_provider, state) do
-    Clock.proxy_for(state.synchronization.clock_proxy, clock_provider.clock)
-    put_in(state, [:synchronization, :clock_provider], clock_provider)
+    synchronization = StateDispatcher.get_parent(state, :synchronization)
+    Clock.proxy_for(synchronization.clock_proxy, clock_provider.clock)
+
+    StateDispatcher.update(state,
+      synchronization: Map.put(synchronization, :clock_provider, clock_provider)
+    )
   end
 
   defp get_clock_from_provider(components, provider) do

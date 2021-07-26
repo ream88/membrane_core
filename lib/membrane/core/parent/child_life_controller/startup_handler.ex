@@ -3,17 +3,18 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
   use Bunch
 
   alias Membrane.{CallbackError, ChildEntry, Clock, Core, ParentError, Sync}
-  alias Membrane.Core.{CallbackHandler, Component, Message, Parent}
+  alias Membrane.Core.{CallbackHandler, Component, Message, Parent, StateDispatcher}
   alias Membrane.Core.Parent.{ChildEntryParser, ChildrenModel}
 
   require Membrane.Core.Component
   require Membrane.Core.Message
   require Membrane.Logger
+  require StateDispatcher
 
   @spec check_if_children_names_unique([ChildEntryParser.raw_child_entry_t()], Parent.state_t()) ::
           :ok | no_return
   def check_if_children_names_unique(children, state) do
-    %{children: state_children} = state
+    state_children = StateDispatcher.get_parent(state, :children)
 
     children
     |> Enum.map(& &1.name)
@@ -101,9 +102,9 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
     context = Component.callback_context_generator(:parent, SpecStarted, state)
 
     action_handler =
-      case state do
-        %Core.Pipeline.State{} -> Core.Pipeline.ActionHandler
-        %Core.Bin.State{} -> Core.Bin.ActionHandler
+      case elem(state, 0) do
+        :bin -> Core.Bin.ActionHandler
+        :pipeline -> Core.Pipeline.ActionHandler
       end
 
     callback_res =
@@ -129,7 +130,9 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
 
   @spec init_playback_state([Membrane.Child.name_t()], Parent.state_t()) :: Parent.state_t()
   def init_playback_state(children_names, state) do
-    case state.playback.pending_state || state.playback.state do
+    playback = StateDispatcher.get_parent(state, :playback)
+
+    case playback.pending_state || playback.state do
       :stopped ->
         state
 

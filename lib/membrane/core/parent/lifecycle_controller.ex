@@ -5,7 +5,16 @@ defmodule Membrane.Core.Parent.LifecycleController do
 
   alias Bunch.Type
   alias Membrane.{Child, Core, Notification, Pad, Sync}
-  alias Membrane.Core.{CallbackHandler, Message, Component, Parent, PlaybackHandler}
+
+  alias Membrane.Core.{
+    CallbackHandler,
+    Message,
+    Component,
+    Parent,
+    PlaybackHandler,
+    StateDispatcher
+  }
+
   alias Membrane.Core.Parent.ChildrenModel
   alias Membrane.PlaybackState
 
@@ -13,11 +22,17 @@ defmodule Membrane.Core.Parent.LifecycleController do
   require Membrane.Core.Message
   require Membrane.Logger
   require Membrane.PlaybackState
+  require StateDispatcher
 
   @impl PlaybackHandler
   def handle_playback_state(old, new, state) do
     Membrane.Logger.debug("Changing playback state from #{old} to #{new}")
-    children_data = Map.values(state.children)
+
+    children_data =
+      state
+      |> StateDispatcher.get_parent(:children)
+      |> Map.values()
+
     :ok = toggle_syncs_active(old, new, children_data)
     Enum.each(children_data, &PlaybackHandler.request_playback_state_change(&1.pid, new))
     {:ok, state} = ChildrenModel.update_children(state, &%{&1 | playback_synced?: false})
@@ -48,7 +63,9 @@ defmodule Membrane.Core.Parent.LifecycleController do
         {:ok, state}
       end
 
-    if state.__struct__ == Membrane.Core.Bin.State and new == :stopped do
+    is_bin = elem(state, 0) == :bin
+
+    if is_bin and new == :stopped do
       Core.Child.LifecycleController.unlink(state)
     end
 
@@ -124,14 +141,17 @@ defmodule Membrane.Core.Parent.LifecycleController do
     :ok = Logger.metadata(metadata)
 
     children_log_metadata =
-      state.children_log_metadata
+      state
+      |> StateDispatcher.get_parent(:children_log_metadata)
       |> Map.new()
       |> Map.merge(Map.new(metadata))
       |> Bunch.KVEnum.filter_by_values(&(&1 != nil))
 
-    Bunch.KVEnum.each_value(state.children, &Message.send(&1.pid, :log_metadata, metadata))
+    state
+    |> StateDispatcher.get_parent(:children)
+    |> Bunch.KVEnum.each_value(&Message.send(&1.pid, :log_metadata, metadata))
 
-    {:ok, %{state | children_log_metadata: children_log_metadata}}
+    {:ok, StateDispatcher.update_parent(state, children_log_metadata: children_log_metadata)}
   end
 
   @spec maybe_finish_playback_transition(Parent.state_t()) ::
@@ -146,8 +166,8 @@ defmodule Membrane.Core.Parent.LifecycleController do
     end
   end
 
-  defp get_callback_action_handler(%Core.Pipeline.State{}), do: Core.Pipeline.ActionHandler
-  defp get_callback_action_handler(%Core.Bin.State{}), do: Core.Bin.ActionHandler
+  defp get_callback_action_handler(Core.Pipeline.State), do: Core.Pipeline.ActionHandler
+  defp get_callback_action_handler(Core.Bin.State), do: Core.Bin.ActionHandler
 
   defp to_parent_sm_callback(:handle_start_of_stream), do: :handle_element_start_of_stream
   defp to_parent_sm_callback(:handle_end_of_stream), do: :handle_element_end_of_stream

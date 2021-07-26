@@ -4,7 +4,7 @@ defmodule Membrane.Core.Parent.ChildLifeController do
 
   alias __MODULE__.{CrashGroupHandler, LinkHandler, StartupHandler}
   alias Membrane.ParentSpec
-  alias Membrane.Core.{CallbackHandler, Component, Parent, PlaybackHandler}
+  alias Membrane.Core.{CallbackHandler, Component, Parent, PlaybackHandler, StateDispatcher}
 
   alias Membrane.Core.Parent.{
     ChildEntryParser,
@@ -19,6 +19,7 @@ defmodule Membrane.Core.Parent.ChildLifeController do
   require Membrane.Bin
   require Membrane.Element
   require Membrane.Logger
+  require StateDispatcher
 
   @spec handle_spec(ParentSpec.t(), Parent.state_t()) ::
           {{:ok, [Membrane.Child.name_t()]}, Parent.state_t()} | no_return
@@ -35,12 +36,15 @@ defmodule Membrane.Core.Parent.ChildLifeController do
     :ok = StartupHandler.check_if_children_names_unique(children, state)
     syncs = StartupHandler.setup_syncs(children, spec.stream_sync)
 
+    synchronization = StateDispatcher.get_parent(state, :synchronization)
+    children_log_metadata = StateDispatcher.get_parent(state, :children_log_metadata)
+
     children =
       StartupHandler.start_children(
         children,
-        state.synchronization.clock_proxy,
+        synchronization.clock_proxy,
         syncs,
-        state.children_log_metadata
+        children_log_metadata
       )
 
     children_names = children |> Enum.map(& &1.name)
@@ -90,9 +94,10 @@ defmodule Membrane.Core.Parent.ChildLifeController do
           {:ok | {:error, any}, Parent.state_t()}
   def handle_remove_child(names, state) do
     names = names |> Bunch.listify()
+    synchronization = StateDispatcher.get_parent(state, :synchronization)
 
     {:ok, state} =
-      if state.synchronization.clock_provider.provider in names do
+      if synchronization.clock_provider.provider in names do
         ClockHandler.reset_clock(state)
       else
         {:ok, state}
@@ -122,15 +127,15 @@ defmodule Membrane.Core.Parent.ChildLifeController do
           {:ok | {:error, any}, Parent.state_t()}
   def child_playback_changed(pid, child_pb_state, state) do
     {:ok, child} = child_by_pid(pid, state)
-    %{playback: playback} = state
+    playback = StateDispatcher.get_parent(state, :playback)
 
     cond do
       playback.pending_state == nil and playback.state == child_pb_state ->
-        state = put_in(state, [:children, child, :playback_synced?], true)
-        {:ok, state}
+        set_child_playback_synced(state, child)
+        ~> {:ok, &1}
 
       playback.pending_state == child_pb_state ->
-        state = put_in(state, [:children, child, :playback_synced?], true)
+        set_child_playback_synced(state, child)
         LifecycleController.maybe_finish_playback_transition(state)
 
       true ->
@@ -249,9 +254,17 @@ defmodule Membrane.Core.Parent.ChildLifeController do
   end
 
   defp child_by_pid(pid, state) do
-    case Enum.find(state.children, fn {_name, entry} -> entry.pid == pid end) do
+    children = StateDispatcher.get_parent(state, :children)
+
+    case Enum.find(children, fn {_name, entry} -> entry.pid == pid end) do
       {child_name, _child_data} -> {:ok, child_name}
       nil -> {:error, :not_child}
     end
+  end
+
+  defp set_child_playback_synced(state, child) do
+    children = StateDispatcher.get_parent(state, :children)
+    new_children = put_in(children, [child, :playback_synced?], true)
+    StateDispatcher.update_parent(state, children: new_children)
   end
 end

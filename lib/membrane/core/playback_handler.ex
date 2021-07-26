@@ -10,11 +10,12 @@ defmodule Membrane.Core.PlaybackHandler do
 
   use Bunch
 
-  alias Membrane.Core.{Component, Message}
+  alias Membrane.Core.{Component, Message, StateDispatcher}
   alias Membrane.PlaybackState
 
   require Message
   require PlaybackState
+  require StateDispatcher
 
   @type handler_return_t ::
           {:ok | {:error, any()}, Component.state_t()} | {:stop, any(), Component.state_t()}
@@ -91,7 +92,7 @@ defmodule Membrane.Core.PlaybackHandler do
   @spec change_playback_state(PlaybackState.t(), module(), Component.state_t()) ::
           handler_return_t()
   def change_playback_state(new_playback_state, handler, state) do
-    %{playback: playback} = state
+    playback = get_playback(state)
 
     playback =
       case playback do
@@ -100,23 +101,23 @@ defmodule Membrane.Core.PlaybackHandler do
       end
 
     if playback.pending_state == nil and playback.state != playback.target_state do
-      do_change_playback_state(handler, %{state | playback: playback})
+      do_change_playback_state(handler, StateDispatcher.update(state, playback: playback))
     else
-      {:ok, %{state | playback: playback}}
+      {:ok, StateDispatcher.update(state, playback: playback)}
     end
   end
 
   defp do_change_playback_state(handler, state) do
-    playback = state.playback
+    playback = get_playback(state)
 
     with {:ok, next_playback_state} <-
            next_state(playback.state, playback.target_state),
          {:ok, state} <-
            handler.handle_playback_state(playback.state, next_playback_state, state) do
-      playback = %{state.playback | pending_state: next_playback_state}
-      state = %{state | playback: playback}
+      playback = %{playback | pending_state: next_playback_state}
+      state = StateDispatcher.update(state, playback: playback)
 
-      if state.playback.async_state_change do
+      if playback.async_state_change do
         {:ok, state}
       else
         continue_playback_change(handler, state)
@@ -126,16 +127,17 @@ defmodule Membrane.Core.PlaybackHandler do
 
   @spec suspend_playback_change(pb) :: {:ok, pb} when pb: Component.state_t()
   def suspend_playback_change(state) do
-    playback = %{state.playback | async_state_change: true}
-    {:ok, %{state | playback: playback}}
+    playback = %{get_playback(state) | async_state_change: true}
+
+    {:ok, StateDispatcher.update(state, playback: playback)}
   end
 
   @spec suspended?(Component.state_t()) :: boolean
-  def suspended?(state), do: state.playback.async_state_change
+  def suspended?(state), do: state |> get_playback() |> Map.get(:async_state_change)
 
   @spec continue_playback_change(module, Component.state_t()) :: handler_return_t()
   def continue_playback_change(handler, state) do
-    old_playback = state.playback
+    old_playback = get_playback(state)
 
     new_playback = %{
       old_playback
@@ -144,7 +146,7 @@ defmodule Membrane.Core.PlaybackHandler do
         pending_state: nil
     }
 
-    state = %{state | playback: new_playback}
+    state = StateDispatcher.update(state, playback: new_playback)
 
     handler_res =
       handler.handle_playback_state_changed(
@@ -161,7 +163,7 @@ defmodule Membrane.Core.PlaybackHandler do
       {:ok, state} ->
         maybe_notify_controller(handler, state)
 
-        change_playback_state(state.playback.target_state, handler, state)
+        change_playback_state(new_playback.target_state, handler, state)
     end
   end
 
@@ -195,4 +197,6 @@ defmodule Membrane.Core.PlaybackHandler do
       diff: _ -> {:error, :target_and_current_states_equal}
     end
   end
+
+  defp get_playback(state), do: StateDispatcher.get(state, :playback)
 end

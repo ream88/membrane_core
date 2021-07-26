@@ -7,6 +7,8 @@ defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
   alias Membrane.Core.Pipeline
   alias Membrane.Core.Parent.CrashGroup
 
+  require Pipeline.State
+
   @spec add_crash_group(
           ParentSpec.crash_group_spec_t(),
           [Membrane.Child.name_t()],

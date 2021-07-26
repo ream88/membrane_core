@@ -12,6 +12,7 @@ defmodule Membrane.Core.Bin do
 
   require Membrane.Core.Message
   require Membrane.Logger
+  require State
 
   @type options_t :: %{
           name: atom,
@@ -86,7 +87,7 @@ defmodule Membrane.Core.Bin do
     clock = if Bunch.Module.check_behaviour(module, :membrane_clock?), do: clock_proxy, else: nil
 
     state =
-      %State{
+      State.bin(
         module: module,
         name: name,
         synchronization: %{
@@ -100,7 +101,7 @@ defmodule Membrane.Core.Bin do
           latency: 0
         },
         children_log_metadata: log_metadata
-      }
+      )
       |> PadSpecHandler.init_pads()
 
     with {:ok, state} <-

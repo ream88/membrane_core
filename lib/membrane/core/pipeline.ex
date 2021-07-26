@@ -8,6 +8,7 @@ defmodule Membrane.Core.Pipeline do
   alias Membrane.Core.Parent.MessageDispatcher
 
   require Membrane.Logger
+  require State
 
   @impl GenServer
   def init({module, pipeline_options}) do
@@ -16,14 +17,15 @@ defmodule Membrane.Core.Pipeline do
     :ok = Membrane.Logger.set_prefix(pipeline_name)
     {:ok, clock} = Clock.start_link(proxy: true)
 
-    state = %State{
-      module: module,
-      synchronization: %{
-        clock_proxy: clock,
-        clock_provider: %{clock: nil, provider: nil, choice: :auto},
-        timers: %{}
-      }
-    }
+    state =
+      State.pipeline(
+        module: module,
+        synchronization: %{
+          clock_proxy: clock,
+          clock_provider: %{clock: nil, provider: nil, choice: :auto},
+          timers: %{}
+        }
+      )
 
     with {:ok, state} <-
            CallbackHandler.exec_and_handle_callback(

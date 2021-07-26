@@ -12,10 +12,14 @@ defmodule Membrane.Core.Child.PadController do
   alias Membrane.Core.Child.{PadModel, PadSpecHandler}
   alias Membrane.Core.Element.{EventController, PlaybackBuffer}
   alias Membrane.Core.Parent.LinkParser
+  alias Membrane.Core.StateDispatcher
 
+  require Membrane.Core.Bin.State
   require Membrane.Core.Child.PadModel
   require Membrane.Core.Component
+  require Membrane.Core.Element.State
   require Membrane.Core.Message
+  require Membrane.Core.StateDispatcher
   require Membrane.Logger
   require Membrane.Pad
 
@@ -55,7 +59,7 @@ defmodule Membrane.Core.Child.PadController do
       state =
         case Pad.availability_mode(info.availability) do
           :static ->
-            state |> Bunch.Access.update_in([:pads, :info], &(&1 |> Map.delete(name)))
+            StateDispatcher.update_child(state, pads: pop_in(state.pads, [:info, name]))
 
           :dynamic ->
             add_to_currently_linking(this.pad_ref, state)
@@ -96,7 +100,7 @@ defmodule Membrane.Core.Child.PadController do
         """)
       end
 
-      bin? = match?(%Membrane.Core.Bin.State{}, state)
+      bin? = elem(0, state) == :bin
 
       if bin? do
         LinkingBuffer.flush_all_public_pads(state)
@@ -264,7 +268,7 @@ defmodule Membrane.Core.Child.PadController do
     data = data |> Map.merge(init_pad_direction_data(data, props, state))
     data = data |> Map.merge(init_pad_mode_data(data, props, other_info, state))
     data = struct!(Pad.Data, data)
-    state |> Bunch.Access.put_in([:pads, :data, ref], data)
+    StateDispatcher.update_child(state, pads: put_in(state.pads, [:data, ref], data))
   end
 
   defp init_pad_direction_data(%{direction: :input}, _props, _state), do: %{sticky_messages: []}
@@ -275,7 +279,7 @@ defmodule Membrane.Core.Child.PadController do
          %{mode: :pull, direction: :input} = data,
          props,
          _other_info,
-         %Membrane.Core.Element.State{}
+         Membrane.Core.Element.State.element()
        ) do
     %{ref: ref, pid: pid, other_ref: other_ref, demand_unit: demand_unit} = data
     input_buf = InputBuffer.init(demand_unit, pid, other_ref, inspect(ref), props.buffer)
@@ -289,11 +293,17 @@ defmodule Membrane.Core.Child.PadController do
 
   @spec add_to_currently_linking(Pad.ref_t(), state_t()) :: state_t()
   defp add_to_currently_linking(ref, state),
-    do: state |> Bunch.Access.update_in([:pads, :dynamic_currently_linking], &[ref | &1])
+    do:
+      StateDispatcher.update_child(state,
+        pads: Map.update(state.pads, :dynamic_currently_linking, [ref | state])
+      )
 
   @spec clear_currently_linking(state_t()) :: state_t()
   defp clear_currently_linking(state),
-    do: state |> Bunch.Access.put_in([:pads, :dynamic_currently_linking], [])
+    do:
+      StateDispatcher.update_child(state,
+        pads: Map.update(state.pads, :dynamic_currently_linking, [])
+      )
 
   @spec generate_eos_if_needed(Pad.ref_t(), state_t()) :: Type.stateful_try_t(state_t)
   def generate_eos_if_needed(pad_ref, state) do
@@ -351,9 +361,9 @@ defmodule Membrane.Core.Child.PadController do
   defp flush_playback_buffer(pad_ref, state) do
     new_playback_buf = PlaybackBuffer.flush_for_pad(state.playback_buffer, pad_ref)
 
-    {:ok, %{state | playback_buffer: new_playback_buf}}
+    {:ok, Core.Element.State.element(state, playback_buffer: new_playback_buf)}
   end
 
-  defp get_callback_action_handler(%Core.Element.State{}), do: Core.Element.ActionHandler
-  defp get_callback_action_handler(%Core.Bin.State{}), do: Core.Bin.ActionHandler
+  defp get_callback_action_handler(Core.Element.State.element()), do: Core.Element.ActionHandler
+  defp get_callback_action_handler(Core.Bin.State.bin()), do: Core.Bin.ActionHandler
 end

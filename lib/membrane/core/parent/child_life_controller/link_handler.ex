@@ -3,15 +3,17 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
 
   use Bunch
 
-  alias Membrane.Core.{Bin, Child, Message, Parent, Telemetry}
+  alias Membrane.Core.{Bin, Child, Message, Parent, StateDispatcher, Telemetry}
   alias Membrane.Core.Child.PadModel
   alias Membrane.Core.Parent.{CrashGroup, Link, LinkParser}
   alias Membrane.Core.Parent.Link.Endpoint
   alias Membrane.LinkError
   alias Membrane.Pad
 
+  require Membrane.Core.Bin.State
   require Membrane.Core.Message
   require Membrane.Pad
+  require StateDispatcher
 
   @spec resolve_links([LinkParser.raw_link_t()], Parent.state_t()) ::
           [Parent.Link.t()]
@@ -42,8 +44,10 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
   def unlink_crash_group(crash_group, state) do
     %CrashGroup{members: members_names} = crash_group
 
+    links = StateDispatcher.get_parent(state, :links)
+
     links_to_remove =
-      Enum.filter(state.links, fn %Link{from: from, to: to} ->
+      Enum.filter(links, fn %Link{from: from, to: to} ->
         from.child in members_names or to.child in members_names
       end)
 
@@ -55,7 +59,9 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
       end
     end)
 
-    Map.update!(state, :links, &Enum.reject(&1, fn link -> link in links_to_remove end))
+    StateDispatcher.update_parent(state,
+      links: &Enum.reject(&1, fn link -> link in links_to_remove end)
+    )
   end
 
   defp flush_linking_buffer(%Link{from: from, to: to}, state) do
@@ -79,7 +85,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
           Endpoint.t() | no_return
   defp resolve_endpoint(
          %Endpoint{child: {Membrane.Bin, :itself}} = endpoint,
-         %Bin.State{} = state
+         Bin.State.bin() = state
        ) do
     %Endpoint{pad_spec: pad_spec} = endpoint
     priv_pad_spec = Membrane.Pad.get_corresponding_bin_pad(pad_spec)
@@ -149,12 +155,12 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
 
   # If the link involves the bin itself, make sure to call `handle_link` in the bin, to avoid
   # calling self() or calling a child that would call the bin, making a deadlock.
-  defp do_link(%Endpoint{child: {Membrane.Bin, :itself}} = from, to, %Bin.State{} = state) do
+  defp do_link(%Endpoint{child: {Membrane.Bin, :itself}} = from, to, Bin.State.bin() = state) do
     {{:ok, _info}, state} = Child.PadController.handle_link(:output, from, to, nil, state)
     state
   end
 
-  defp do_link(from, %Endpoint{child: {Membrane.Bin, :itself}} = to, %Bin.State{} = state) do
+  defp do_link(from, %Endpoint{child: {Membrane.Bin, :itself}} = to, Bin.State.bin() = state) do
     {{:ok, _info}, state} = Child.PadController.handle_link(:input, to, from, nil, state)
     state
   end

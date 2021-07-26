@@ -7,7 +7,8 @@ defmodule Membrane.Core.Parent.MessageDispatcher do
   alias Membrane.Core.Message
   alias Membrane.Core.Parent.{ChildLifeController, LifecycleController}
 
-  require Membrane.Core.Message
+  require Message
+  require Pipeline.State
 
   @spec handle_message(Message.t(), Parent.state_t()) ::
           Membrane.Helper.GenServer.genserver_return_t()
@@ -78,6 +79,6 @@ defmodule Membrane.Core.Parent.MessageDispatcher do
     Enum.any?(state.children, fn {_name, entry} -> entry.pid == pid end)
   end
 
-  defp pipeline?(%Pipeline.State{}), do: true
+  defp pipeline?(Pipeline.State.pipeline()), do: true
   defp pipeline?(_state), do: false
 end

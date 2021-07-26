@@ -12,6 +12,7 @@ defmodule Membrane.Core.Element.BufferController do
   alias Membrane.Element.CallbackContext
 
   require Membrane.Core.Child.PadModel
+  require Membrane.Core.Element.State
 
   @doc """
   Handles incoming buffer: either stores it in InputBuffer, or executes element's
@@ -39,7 +40,7 @@ defmodule Membrane.Core.Element.BufferController do
         ) :: State.stateful_try_t()
   def exec_buffer_handler(pad_ref, buffers, params \\ %{}, state)
 
-  def exec_buffer_handler(pad_ref, buffers, params, %State{type: :filter} = state) do
+  def exec_buffer_handler(pad_ref, buffers, params, State.element(type: :filter) = state) do
     require CallbackContext.Process
 
     CallbackHandler.exec_and_handle_callback(
@@ -51,7 +52,7 @@ defmodule Membrane.Core.Element.BufferController do
     )
   end
 
-  def exec_buffer_handler(pad_ref, buffers, params, %State{type: :sink} = state) do
+  def exec_buffer_handler(pad_ref, buffers, params, State.element(type: :sink) = state) do
     require CallbackContext.Write
 
     CallbackHandler.exec_and_handle_callback(

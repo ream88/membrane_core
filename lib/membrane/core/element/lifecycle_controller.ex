@@ -14,6 +14,7 @@ defmodule Membrane.Core.Element.LifecycleController do
   alias Membrane.Element.CallbackContext
 
   require Membrane.Core.Child.PadModel
+  require Membrane.Core.Element.State
   require Membrane.Core.Message
   require Membrane.Core.Playback
   require Membrane.Logger
@@ -22,7 +23,7 @@ defmodule Membrane.Core.Element.LifecycleController do
   Performs initialization tasks and executes `handle_init` callback.
   """
   @spec handle_init(Element.options_t(), State.t()) :: State.stateful_try_t()
-  def handle_init(options, %State{module: module} = state) do
+  def handle_init(options, State.element(module: module) = state) do
     Membrane.Logger.debug(
       "Initializing element: #{inspect(module)}, options: #{inspect(options)}"
     )
@@ -76,7 +77,7 @@ defmodule Membrane.Core.Element.LifecycleController do
       """)
     end
 
-    %State{module: module, internal_state: internal_state} = state
+    State.element(module: module, internal_state: internal_state) = state
 
     :ok = module.handle_shutdown(reason, internal_state)
     {:ok, state}

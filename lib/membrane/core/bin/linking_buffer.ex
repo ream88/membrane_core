@@ -8,6 +8,7 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
 
   require Message
   require Pad
+  require State
 
   @type t :: %{Pad.name_t() => [Message.t()]}
 
@@ -26,21 +27,21 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
   * msg - message to be sent
   * sender_pad - pad from which the message is supposed
                    to be sent
-  * bin_state - state of the bin
+  * state - state of the bin
   """
   @spec store_or_send(Message.t(), Pad.ref_t(), State.t()) :: State.t()
-  def store_or_send(msg, sender_pad, bin_state) do
-    buf = bin_state.linking_buffer
+  def store_or_send(msg, sender_pad, state) do
+    buf = State.bin(state, :linking_buffer)
 
     with {:ok, %{pid: dest_pid, other_ref: other_ref}} <-
-           PadModel.get_data(bin_state, sender_pad),
-         false <- currently_linking?(sender_pad, bin_state) do
+           PadModel.get_data(state, sender_pad),
+         false <- currently_linking?(sender_pad, state) do
       send(dest_pid, Message.set_for_pad(msg, other_ref))
-      bin_state
+      state
     else
       _unknown_or_linking ->
         new_buf = Map.update(buf, sender_pad, [msg], &[msg | &1])
-        %{bin_state | linking_buffer: new_buf}
+        State.bin(state, linking_buffer: new_buf)
     end
   end
 
@@ -52,22 +53,22 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
   A link must already be available.
   """
   @spec flush_for_pad(Pad.ref_t(), State.t()) :: State.t()
-  def flush_for_pad(pad, bin_state) do
-    buf = bin_state.linking_buffer
+  def flush_for_pad(pad, state) do
+    buf = state.linking_buffer
 
     case Map.pop(buf, pad, []) do
       {[], ^buf} ->
-        bin_state
+        state
 
       {msgs, new_buf} ->
-        msgs |> Enum.reverse() |> Enum.each(&do_flush(&1, pad, bin_state))
-        %{bin_state | linking_buffer: new_buf}
+        msgs |> Enum.reverse() |> Enum.each(&do_flush(&1, pad, state))
+        State.bin(state, linking_buffer: new_buf)
     end
   end
 
   @spec flush_all_public_pads(State.t()) :: State.t()
-  def flush_all_public_pads(bin_state) do
-    buf = bin_state.linking_buffer
+  def flush_all_public_pads(state) do
+    buf = state.linking_buffer
 
     public_pads =
       buf
@@ -75,11 +76,11 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
       |> Enum.filter(&(&1 |> Pad.name_by_ref() |> Pad.is_public_name()))
 
     public_pads
-    |> Enum.reduce(bin_state, &flush_for_pad/2)
+    |> Enum.reduce(state, &flush_for_pad/2)
   end
 
-  defp do_flush(msg, sender_pad, bin_state) do
-    {:ok, %{pid: dest_pid, other_ref: other_ref}} = PadModel.get_data(bin_state, sender_pad)
+  defp do_flush(msg, sender_pad, state) do
+    {:ok, %{pid: dest_pid, other_ref: other_ref}} = PadModel.get_data(state, sender_pad)
     send(dest_pid, Message.set_for_pad(msg, other_ref))
   end
 end

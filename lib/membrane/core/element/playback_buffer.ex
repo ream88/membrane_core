@@ -23,6 +23,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
   alias Membrane.Event
 
   require Membrane.Core.Child.PadModel
+  require Membrane.Core.Element.State
   require Membrane.Core.Message
   require Membrane.Logger
 
@@ -45,7 +46,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
   Stores message if it cannot be handled yet.
   """
   @spec store(message_t, State.t()) :: State.stateful_try_t()
-  def store(msg, %State{playback: %Playback{state: :playing}} = state) do
+  def store(msg, State.element(playback: %Playback{state: :playing}) = state) do
     with {:ok, state} <- exec(msg, state) do
       {:ok, state}
     else
@@ -59,7 +60,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
 
   def store(
         Message.new(type, _args, _opts) = msg,
-        %State{playback: %Playback{state: :prepared}} = state
+        State.element(playback: %Playback{state: :prepared}) = state
       )
       when type in [:event, :caps] do
     if state.playback_buffer |> empty? do
@@ -84,7 +85,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
   can be handled in current playback state.
   """
   @spec eval(State.t()) :: State.stateful_try_t()
-  def eval(%State{playback: %Playback{state: :playing}} = state) do
+  def eval(State.element(playback: %Playback{state: :playing}) = state) do
     Membrane.Logger.debug("Evaluating playback buffer")
 
     with {:ok, state} <-
