@@ -1,7 +1,7 @@
 defmodule Membrane.Core.Element.State do
   @moduledoc false
 
-  # Structure representing state of an Core.Element. It is a part of the private API.
+  # Record representing state of an Core.Element. It is a part of the private API.
   # It does not represent state of elements you construct, it's a state used
   # internally in Membrane.
 
@@ -13,35 +13,40 @@ defmodule Membrane.Core.Element.State do
   alias Membrane.Core.Child.{PadModel, PadSpecHandler}
   alias Membrane.Core.Element.PlaybackBuffer
 
+  require Record
   require Membrane.Pad
 
   @type stateful_t(value) :: Type.stateful_t(value, t)
   @type stateful_try_t :: Type.stateful_try_t(t)
   @type stateful_try_t(value) :: Type.stateful_try_t(value, t)
 
-  @type t :: %__MODULE__{
-          module: module,
-          type: Element.type_t(),
-          name: Element.name_t(),
-          internal_state: Element.state_t() | nil,
-          pads: PadModel.pads_t() | nil,
-          watcher: pid | nil,
-          controlling_pid: pid | nil,
-          parent_monitor: reference() | nil,
-          playback: Playback.t(),
-          playback_buffer: PlaybackBuffer.t(),
-          supplying_demand?: boolean(),
-          delayed_demands: MapSet.t({Pad.ref_t(), :supply | :redemand}),
-          synchronization: %{
-            timers: %{Timer.id_t() => Timer.t()},
-            parent_clock: Clock.t(),
-            latency: non_neg_integer(),
-            stream_sync: Sync.t(),
-            clock: Clock.t() | nil
-          }
-        }
+  @type element ::
+          record(
+            :element,
+            module: module,
+            type: Element.type_t(),
+            name: Element.name_t(),
+            internal_state: Element.state_t() | nil,
+            pads: PadModel.pads_t() | nil,
+            watcher: pid | nil,
+            controlling_pid: pid | nil,
+            parent_monitor: reference() | nil,
+            playback: Playback.t(),
+            playback_buffer: PlaybackBuffer.t(),
+            supplying_demand?: boolean(),
+            delayed_demands: MapSet.t({Pad.ref_t(), :supply | :redemand}),
+            synchronization: %{
+              timers: %{Timer.id_t() => Timer.t()},
+              parent_clock: Clock.t(),
+              latency: non_neg_integer(),
+              stream_sync: Sync.t(),
+              clock: Clock.t() | nil
+            }
+          )
 
-  defstruct [
+  @type t :: element()
+
+  Record.defrecord(:element, [
     :module,
     :type,
     :name,
@@ -55,7 +60,7 @@ defmodule Membrane.Core.Element.State do
     :supplying_demand?,
     :delayed_demands,
     :synchronization
-  ]
+  ])
 
   @doc """
   Initializes new state.
@@ -68,7 +73,7 @@ defmodule Membrane.Core.Element.State do
           parent_monitor: reference()
         }) :: t
   def new(options) do
-    %__MODULE__{
+    element(
       module: options.module,
       type: options.module.membrane_element_type(),
       name: options.name,
@@ -88,7 +93,7 @@ defmodule Membrane.Core.Element.State do
         stream_sync: options.sync,
         latency: 0
       }
-    }
+    )
     |> PadSpecHandler.init_pads()
   end
 end
