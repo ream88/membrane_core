@@ -7,6 +7,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
 
   use Bunch
   use Bunch.Access
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.Child.PadModel
 
@@ -18,12 +19,10 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
     State
   }
 
-  alias Membrane.Core.Message
-  alias Membrane.Core.Playback
+  alias Membrane.Core.{Message, Playback, StateDispatcher}
   alias Membrane.Event
 
   require Membrane.Core.Child.PadModel
-  require Membrane.Core.Element.State
   require Membrane.Core.Message
   require Membrane.Logger
 
@@ -63,7 +62,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
         State.element(playback: %Playback{state: :prepared}) = state
       )
       when type in [:event, :caps] do
-    if state.playback_buffer |> empty? do
+    if state |> StateDispatcher.get_element(:playback_buffer) |> empty? do
       exec(msg, state)
     else
       do_store(msg, state)
@@ -76,7 +75,9 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
 
   defp do_store(msg, state) do
     state
-    |> Bunch.Access.update_in([:playback_buffer, :q], &@qe.push(&1, msg))
+    |> StateDispatcher.get_element(:playback_buffer)
+    |> Map.update!(:q, &@qe.push(&1, msg))
+    |> then(&StateDispatcher.update_element(state, playback_buffer: &1))
     ~> (state -> {:ok, state})
   end
 
@@ -89,9 +90,17 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
     Membrane.Logger.debug("Evaluating playback buffer")
 
     with {:ok, state} <-
-           state.playback_buffer.q
-           |> Bunch.Enum.try_reduce(state, &exec/2),
-         do: {:ok, state |> Bunch.Access.put_in([:playback_buffer, :q], @qe.new)}
+           state
+           |> StateDispatcher.get_element(:playback_buffer)
+           |> Map.get(:q)
+           |> Bunch.Enum.try_reduce(state, &exec/2)
+         do
+          state
+          |> StateDispatcher.get_element(:playback_buffer)
+          |> Map.put(:q, @qe.new)
+          |> then(&StateDispatcher.update_element(state, playback_buffer: &1))
+          ~> {:ok, &1}
+         end
   end
 
   def eval(state), do: {:ok, state}

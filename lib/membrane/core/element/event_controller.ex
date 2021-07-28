@@ -4,9 +4,10 @@ defmodule Membrane.Core.Element.EventController do
   # Module handling events incoming through input pads.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.{Event, Pad, Sync}
-  alias Membrane.Core.{CallbackHandler, Events, InputBuffer, Message, Telemetry}
+  alias Membrane.Core.{CallbackHandler, Events, InputBuffer, Message, Telemetry, StateDispatcher}
   alias Membrane.Core.Child.PadModel
   alias Membrane.Core.Element.{ActionHandler, State}
   alias Membrane.Element.CallbackContext
@@ -95,7 +96,10 @@ defmodule Membrane.Core.Element.EventController do
         state
       )
 
-    if state.watcher, do: Message.send(state.watcher, callback, [state.name, pad_ref])
+
+    if watcher = StateDispatcher.get_element(state, :watcher) do
+      Message.send(watcher, callback, [StateDispatcher.get_element(state, :name), pad_ref])
+    end
 
     res
   end
@@ -110,11 +114,13 @@ defmodule Membrane.Core.Element.EventController do
   end
 
   defp check_sync(%Events.StartOfStream{}, state) do
-    if state.pads.data
+    if state
+       |> StateDispatcher.get_element(:pads)
+       |> Map.get(:data)
        |> Map.values()
        |> Enum.filter(&(&1.direction == :input))
        |> Enum.all?(& &1.start_of_stream?) do
-      :ok = Sync.sync(state.synchronization.stream_sync)
+      :ok = state |> StateDispatcher.get_element(:synchronization) |> Map.get(:stream_sync) |> Sync.sync()
     end
 
     {:ok, state}
@@ -144,7 +150,7 @@ defmodule Membrane.Core.Element.EventController do
     pad_data = PadModel.get_data!(state, pad_ref)
 
     withl data: %{direction: :input, start_of_stream?: true, end_of_stream?: false} <- pad_data,
-          playback: %{state: :playing} <- state.playback do
+          playback: %{state: :playing} <- StateDispatcher.get_element(state, :playback) do
       state
       |> PadModel.set_data!(pad_ref, :end_of_stream?, true)
       ~> {{:ok, :handle}, &1}

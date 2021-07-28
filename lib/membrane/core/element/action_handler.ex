@@ -5,19 +5,18 @@ defmodule Membrane.Core.Element.ActionHandler do
 
   use Bunch
   use Membrane.Core.CallbackHandler
+  use Membrane.Core.StateDispatcher
 
   import Membrane.Pad, only: [is_pad_ref: 1]
 
   alias Membrane.{ActionError, Buffer, Caps, CallbackError, Event, Notification, Pad}
   alias Membrane.Core.Element.{DemandHandler, LifecycleController, State}
-  alias Membrane.Core.{Events, Message, PlaybackHandler, TimerController}
+  alias Membrane.Core.{Events, Message, PlaybackHandler, StateDispatcher, TimerController}
   alias Membrane.Core.Child.PadModel
-  alias Membrane.Core.Element.{DemandHandler, LifecycleController, State}
   alias Membrane.Element.Action
 
   require Membrane.Logger
   require Membrane.Core.Child.PadModel
-  require Membrane.Core.Element.State
   require Membrane.Core.Message
 
   @impl CallbackHandler
@@ -26,7 +25,10 @@ defmodule Membrane.Core.Element.ActionHandler do
       {:ok, state}
     else
       {{:error, reason}, state} ->
-        raise ActionError, reason: reason, action: action, callback: {state.module, callback}
+        raise ActionError,
+          reason: reason,
+          action: action,
+          callback: {StateDispatcher.get_element(state, :module), callback}
     end
   end
 
@@ -165,7 +167,7 @@ defmodule Membrane.Core.Element.ActionHandler do
   end
 
   defp do_handle_action({:start_timer, {id, interval}}, cb, params, state) do
-    clock = state.synchronization.parent_clock
+    clock = StateDispatcher.get_element(state, :synchronization).parent_clock
     do_handle_action({:start_timer, {id, interval, clock}}, cb, params, state)
   end
 
@@ -179,8 +181,11 @@ defmodule Membrane.Core.Element.ActionHandler do
   end
 
   defp do_handle_action({:latency, latency}, _cb, _params, state) do
-    new_state = put_in(state.synchronization.latency, latency)
-    {:ok, new_state}
+    state
+    |> StateDispatcher.get_element(:synchronization)
+    |> Map.update!(:latency, latency)
+    |> then(&StateDispatcher.update_element(state, synchronization: &1))
+    ~> {:ok, &1}
   end
 
   defp do_handle_action(
@@ -194,7 +199,7 @@ defmodule Membrane.Core.Element.ActionHandler do
   end
 
   defp do_handle_action(action, callback, _params, state) do
-    raise CallbackError, kind: :invalid_action, action: action, callback: {state.module, callback}
+    raise CallbackError, kind: :invalid_action, action: action, callback: {StateDispatcher.get_element(state, :module), callback}
   end
 
   @impl CallbackHandler
@@ -218,7 +223,7 @@ defmodule Membrane.Core.Element.ActionHandler do
         raise ActionError,
           reason: :actions_after_redemand,
           action: redemand,
-          callback: {state.module, callback}
+          callback: {StateDispatcher.get_element(state, :module), callback}
     end
   end
 
@@ -379,7 +384,7 @@ defmodule Membrane.Core.Element.ActionHandler do
   end
 
   @spec handle_redemand(Pad.ref_t(), State.t()) :: State.stateful_try_t()
-  defp handle_redemand(out_ref, %{type: type} = state) when type in [:source, :filter] do
+  defp handle_redemand(out_ref, State.element(type: type) = state) when type in [:source, :filter] do
     withl data: {:ok, pad_data} <- PadModel.get_data(state, out_ref),
           dir: %{direction: :output} <- pad_data,
           mode: %{mode: :pull} <- pad_data do

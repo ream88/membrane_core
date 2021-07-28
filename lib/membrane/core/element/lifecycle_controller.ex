@@ -6,15 +6,15 @@ defmodule Membrane.Core.Element.LifecycleController do
 
   use Bunch
   use Membrane.Core.PlaybackHandler
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.{Clock, Core, Element, Sync}
-  alias Membrane.Core.{CallbackHandler, Message}
+  alias Membrane.Core.{CallbackHandler, Message, StateDispatcher}
   alias Membrane.Core.Child.PadController
   alias Membrane.Core.Element.{ActionHandler, PlaybackBuffer, State}
   alias Membrane.Element.CallbackContext
 
   require Membrane.Core.Child.PadModel
-  require Membrane.Core.Element.State
   require Membrane.Core.Message
   require Membrane.Core.Playback
   require Membrane.Logger
@@ -28,12 +28,15 @@ defmodule Membrane.Core.Element.LifecycleController do
       "Initializing element: #{inspect(module)}, options: #{inspect(options)}"
     )
 
-    :ok = Sync.register(state.synchronization.stream_sync)
+    :ok = state |> StateDispatcher.get_element(:synchronization) |> Map.get(:stream_sync) |> Sync.register()
 
     state =
       if Bunch.Module.check_behaviour(module, :membrane_clock?) do
         {:ok, clock} = Clock.start_link()
-        put_in(state.synchronization.clock, clock)
+        state
+        |> StateDispatcher.get_element(:synchronization)
+        |> Map.put(:clock, clock)
+        |> then(&StateDispatcher.update_element(state, synchronization: &1))
       else
         state
       end
@@ -65,7 +68,7 @@ defmodule Membrane.Core.Element.LifecycleController do
   """
   @spec handle_shutdown(reason :: any, State.t()) :: {:ok, State.t()}
   def handle_shutdown(reason, state) do
-    playback_state = state.playback.state
+    playback_state = StateDispatcher.get_element(state, :playback).state
 
     if playback_state == :terminating do
       Membrane.Logger.debug("Terminating element, reason: #{inspect(reason)}")
@@ -77,7 +80,8 @@ defmodule Membrane.Core.Element.LifecycleController do
       """)
     end
 
-    State.element(module: module, internal_state: internal_state) = state
+    module = StateDispatcher.get_element(state, :module)
+    internal_state = StateDispatcher.get_element(state, :internal_state)
 
     :ok = module.handle_shutdown(reason, internal_state)
     {:ok, state}
@@ -120,7 +124,9 @@ defmodule Membrane.Core.Element.LifecycleController do
 
     state =
       if old_playback_state == :playing and new_playback_state == :prepared do
-        state.pads.data
+        state
+        |> StateDispatcher.get_element(:pads)
+        |> Map.get(:data)
         |> Map.values()
         |> Enum.filter(&(&1.direction == :input))
         |> Enum.map(& &1.ref)

@@ -4,6 +4,7 @@ defmodule Membrane.Core.Element.CapsController do
   # Module handling caps received on input pads.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.{Caps, Pad}
   alias Membrane.Core.{CallbackHandler, InputBuffer, Telemetry}
