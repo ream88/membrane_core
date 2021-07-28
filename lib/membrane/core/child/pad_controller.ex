@@ -4,22 +4,19 @@ defmodule Membrane.Core.Child.PadController do
   # Module handling linking and unlinking pads.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
+
   alias Bunch.Type
   alias Membrane.{Core, LinkError, Pad, ParentSpec}
-  alias Membrane.Core.{CallbackHandler, Events, InputBuffer, Message}
+  alias Membrane.Core.{CallbackHandler, Component, Events, InputBuffer, Message, StateDispatcher}
   alias Membrane.Core.Bin.LinkingBuffer
-  alias Membrane.Core.{CallbackHandler, Component, Message, InputBuffer}
   alias Membrane.Core.Child.{PadModel, PadSpecHandler}
   alias Membrane.Core.Element.{EventController, PlaybackBuffer}
   alias Membrane.Core.Parent.LinkParser
-  alias Membrane.Core.StateDispatcher
 
-  require Membrane.Core.Bin.State
   require Membrane.Core.Child.PadModel
   require Membrane.Core.Component
-  require Membrane.Core.Element.State
   require Membrane.Core.Message
-  require Membrane.Core.StateDispatcher
   require Membrane.Logger
   require Membrane.Pad
 
@@ -39,7 +36,8 @@ defmodule Membrane.Core.Child.PadController do
         ) :: Type.stateful_try_t(PadModel.pad_info_t(), state_t)
   def handle_link(direction, this, other, other_info, state) do
     name = this.pad_ref |> Pad.name_by_ref()
-    info = state.pads.info[name]
+    pads = StateDispatcher.get_child(state, :pads)
+    info = pads.info[name]
 
     {:ok, other_info} =
       if other_info do
@@ -59,7 +57,10 @@ defmodule Membrane.Core.Child.PadController do
       state =
         case Pad.availability_mode(info.availability) do
           :static ->
-            StateDispatcher.update_child(state, pads: pop_in(state.pads, [:info, name]))
+            state
+            |> StateDispatcher.get_child(:pads)
+            |> pop_in([:info, name])
+            |> then(&StateDispatcher.update_child(state, pads: elem(&1, 1)))
 
           :dynamic ->
             add_to_currently_linking(this.pad_ref, state)
@@ -80,12 +81,16 @@ defmodule Membrane.Core.Child.PadController do
   @spec handle_linking_finished(state_t()) :: Type.stateful_try_t(state_t)
   def handle_linking_finished(state) do
     with {:ok, state} <-
-           state.pads.dynamic_currently_linking
+           state
+           |> StateDispatcher.get_child(:pads)
+           |> Map.get(:dynamic_currently_linking)
            |> Enum.reverse()
            |> Enum.filter(&(&1 |> Pad.name_by_ref() |> Pad.is_public_name()))
            |> Bunch.Enum.try_reduce(state, &handle_pad_added/2) do
       static_unlinked =
-        state.pads.info
+        state
+        |> StateDispatcher.get_child(:pads)
+        |> Map.get(:info)
         |> Enum.flat_map(fn {name, info} ->
           case info.availability |> Pad.availability_mode() do
             :static -> [name]
@@ -100,9 +105,7 @@ defmodule Membrane.Core.Child.PadController do
         """)
       end
 
-      bin? = elem(0, state) == :bin
-
-      if bin? do
+      if StateDispatcher.bin?(state) do
         LinkingBuffer.flush_all_public_pads(state)
       else
         send_push_mode_announcements(state)
@@ -114,7 +117,9 @@ defmodule Membrane.Core.Child.PadController do
   end
 
   defp send_push_mode_announcements(state) do
-    state.pads.data
+    state
+    |> StateDispatcher.get_child(:pads)
+    |> Map.get(:data)
     |> Map.values()
     |> Enum.filter(&(&1.mode == :push))
     |> Enum.each(&Message.send(&1.pid, :push_mode_announcement, [], for_pad: &1.other_ref))
@@ -268,7 +273,11 @@ defmodule Membrane.Core.Child.PadController do
     data = data |> Map.merge(init_pad_direction_data(data, props, state))
     data = data |> Map.merge(init_pad_mode_data(data, props, other_info, state))
     data = struct!(Pad.Data, data)
-    StateDispatcher.update_child(state, pads: put_in(state.pads, [:data, ref], data))
+
+    state
+    |> StateDispatcher.get_child(:pads)
+    |> put_in([:data, ref], data)
+    |> then(&StateDispatcher.update_child(state, pads: &1))
   end
 
   defp init_pad_direction_data(%{direction: :input}, _props, _state), do: %{sticky_messages: []}
@@ -279,7 +288,7 @@ defmodule Membrane.Core.Child.PadController do
          %{mode: :pull, direction: :input} = data,
          props,
          _other_info,
-         Membrane.Core.Element.State.element()
+         Core.Element.State.element()
        ) do
     %{ref: ref, pid: pid, other_ref: other_ref, demand_unit: demand_unit} = data
     input_buf = InputBuffer.init(demand_unit, pid, other_ref, inspect(ref), props.buffer)
@@ -292,24 +301,30 @@ defmodule Membrane.Core.Child.PadController do
   defp init_pad_mode_data(_data, _props, _other_info, _state), do: %{}
 
   @spec add_to_currently_linking(Pad.ref_t(), state_t()) :: state_t()
-  defp add_to_currently_linking(ref, state),
-    do:
-      StateDispatcher.update_child(state,
-        pads: Map.update(state.pads, :dynamic_currently_linking, [ref | state])
-      )
+  defp add_to_currently_linking(ref, state) do
+    state
+    |> StateDispatcher.get_child(:pads)
+    |> Map.update!(:dynamic_currently_linking, [ref | state])
+    |> then(&StateDispatcher.update_child(state, pads: &1))
+  end
 
   @spec clear_currently_linking(state_t()) :: state_t()
-  defp clear_currently_linking(state),
-    do:
-      StateDispatcher.update_child(state,
-        pads: Map.update(state.pads, :dynamic_currently_linking, [])
-      )
+  defp clear_currently_linking(state) do
+    state
+    |> StateDispatcher.get_child(:pads)
+    |> Map.update!(:dynamic_currently_linking, [])
+    |> then(&StateDispatcher.update_child(state, pads: &1))
+  end
 
   @spec generate_eos_if_needed(Pad.ref_t(), state_t()) :: Type.stateful_try_t(state_t)
   def generate_eos_if_needed(pad_ref, state) do
     direction = PadModel.get_data!(state, pad_ref, :direction)
     eos? = PadModel.get_data!(state, pad_ref, :end_of_stream?)
-    %{state: playback_state} = state.playback
+
+    playback_state =
+      state
+      |> StateDispatcher.get_child(:playback)
+      |> Map.get(:state)
 
     if direction == :input and not eos? and playback_state == :playing do
       EventController.exec_handle_event(pad_ref, %Events.EndOfStream{}, state)
@@ -361,9 +376,12 @@ defmodule Membrane.Core.Child.PadController do
   defp flush_playback_buffer(pad_ref, state) do
     new_playback_buf = PlaybackBuffer.flush_for_pad(state.playback_buffer, pad_ref)
 
-    {:ok, Core.Element.State.element(state, playback_buffer: new_playback_buf)}
+    {:ok, StateDispatcher.update_element(state, playback_buffer: new_playback_buf)}
   end
 
-  defp get_callback_action_handler(Core.Element.State.element()), do: Core.Element.ActionHandler
-  defp get_callback_action_handler(Core.Bin.State.bin()), do: Core.Bin.ActionHandler
+  defp get_callback_action_handler(state) when StateDispatcher.element?(state),
+    do: Core.Element.ActionHandler
+
+  defp get_callback_action_handler(state) when StateDispatcher.bin?(state),
+    do: Core.Bin.ActionHandler
 end

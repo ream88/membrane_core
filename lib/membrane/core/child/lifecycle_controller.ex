@@ -1,15 +1,12 @@
 defmodule Membrane.Core.Child.LifecycleController do
   @moduledoc false
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Clock
-  alias Membrane.Core.{Child, Message}
+  alias Membrane.Core.{Child, Message, StateDispatcher}
   alias Membrane.Core.Child.PadModel
-  alias Membrane.Core.StateDispatcher
 
-  require Membrane.Core.Bin.State
-  require Membrane.Core.Element.State
-  require Membrane.Core.StateDispatcher
   require Message
   require PadModel
 
@@ -18,15 +15,19 @@ defmodule Membrane.Core.Child.LifecycleController do
     do: {:ok, StateDispatcher.update_child(state, controlling_pid: pid)}
 
   @spec handle_watcher(pid, Child.state_t()) :: {{:ok, %{clock: Clock.t()}}, Child.state_t()}
-  def handle_watcher(watcher, state),
-    do:
-      {{:ok, %{clock: state.synchronization.clock}},
-       StateDispatcher.update_child(state, watcher: watcher)}
+  def handle_watcher(watcher, state) do
+    synchronization = StateDispatcher.get_child(state, :synchronization)
+
+    {{:ok, %{clock: synchronization.clock}},
+     StateDispatcher.update_child(state, watcher: watcher)}
+  end
 
   @spec unlink(Child.state_t()) :: :ok
-  def unlink(state) do
-    state.pads.data
-    |> Map.values()
-    |> Enum.each(&Message.send(&1.pid, :handle_unlink, &1.other_ref))
-  end
+  def unlink(state),
+    do:
+      state
+      |> StateDispatcher.get_child(:pads)
+      |> Map.get(:data)
+      |> Map.values()
+      |> Enum.each(&Message.send(&1.pid, :handle_unlink, &1.other_ref))
 end

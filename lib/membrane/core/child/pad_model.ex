@@ -4,9 +4,10 @@ defmodule Membrane.Core.Child.PadModel do
   # Utility functions for veryfying and manipulating pads and their data.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Bunch.Type
-  alias Membrane.Core.Child
+  alias Membrane.Core.{Child, StateDispatcher}
   alias Membrane.Pad
 
   @type pads_data_t :: %{Pad.ref_t() => Pad.Data.t()}
@@ -34,7 +35,7 @@ defmodule Membrane.Core.Child.PadModel do
   @spec assert_instance(Child.state_t(), Pad.ref_t()) ::
           :ok | unknown_pad_error_t
   def assert_instance(state, pad_ref) do
-    if state.pads.data |> Map.has_key?(pad_ref) do
+    if state |> StateDispatcher.get_child(:pads) |> Map.get(:data) |> Map.has_key?(pad_ref) do
       :ok
     else
       {:error, {:unknown_pad, pad_ref}}
@@ -59,6 +60,7 @@ defmodule Membrane.Core.Child.PadModel do
     end
   end
 
+  @spec assert_data!(any, any, any) :: {:=, [], [:ok | {{any, any, any}, [], [...]}, ...]}
   defmacro assert_data!(state, pad_ref, pattern) do
     quote do
       :ok = unquote(__MODULE__).assert_data(unquote(state), unquote(pad_ref), unquote(pattern))
@@ -69,11 +71,13 @@ defmodule Membrane.Core.Child.PadModel do
   def filter_refs_by_data(state, constraints \\ %{})
 
   def filter_refs_by_data(state, constraints) when constraints == %{} do
-    state.pads.data |> Map.keys()
+    state |> StateDispatcher.get_child(:pads) |> Map.get(:data) |> Map.keys()
   end
 
   def filter_refs_by_data(state, constraints) do
-    state.pads.data
+    state
+    |> StateDispatcher.get_child(:pads)
+    |> Map.get(:data)
     |> Enum.filter(fn {_name, data} -> data |> constraints_met?(constraints) end)
     |> Keyword.keys()
   end
@@ -82,11 +86,15 @@ defmodule Membrane.Core.Child.PadModel do
   def filter_data(state, constraints \\ %{})
 
   def filter_data(state, constraints) when constraints == %{} do
-    state.pads.data
+    state
+    |> StateDispatcher.get_child(:pads)
+    |> Map.get(:data)
   end
 
   def filter_data(state, constraints) do
-    state.pads.data
+    state
+    |> StateDispatcher.get_child(:pads)
+    |> Map.get(:data)
     |> Enum.filter(fn {_name, data} -> data |> constraints_met?(constraints) end)
     |> Map.new()
   end
@@ -96,6 +104,7 @@ defmodule Membrane.Core.Child.PadModel do
   def get_data(state, pad_ref, keys \\ []) do
     with :ok <- assert_instance(state, pad_ref) do
       state
+      |> StateDispatcher.get_child(:pads)
       |> Bunch.Access.get_in(data_keys(pad_ref, keys))
       ~> {:ok, &1}
     end
@@ -112,7 +121,9 @@ defmodule Membrane.Core.Child.PadModel do
   def set_data(state, pad_ref, keys \\ [], value) do
     with {:ok, state} <- {assert_instance(state, pad_ref), state} do
       state
+      |> StateDispatcher.get_child(:pads)
       |> Bunch.Access.put_in(data_keys(pad_ref, keys), value)
+      |> then(&StateDispatcher.update_child(state, pads: &1))
       ~> {:ok, &1}
     end
   end
@@ -136,7 +147,10 @@ defmodule Membrane.Core.Child.PadModel do
     with {:ok, state} <- {assert_instance(state, pad_ref), state},
          {:ok, state} <-
            state
-           |> Bunch.Access.get_and_update_in(data_keys(pad_ref, keys), f) do
+           |> StateDispatcher.get_child(:pads)
+           |> Bunch.Access.get_and_update_in(data_keys(pad_ref, keys), f)
+           |> then(&StateDispatcher.update_child(state, pads: &1))
+           ~> {:ok, &1} do
       {:ok, state}
     else
       {{:error, reason}, state} -> {{:error, reason}, state}
@@ -150,7 +164,9 @@ defmodule Membrane.Core.Child.PadModel do
     :ok = assert_instance(state, pad_ref)
 
     state
+    |> StateDispatcher.get_child(:pads)
     |> Bunch.Access.update_in(data_keys(pad_ref, keys), f)
+    |> then(&StateDispatcher.update_child(state, pads: &1))
   end
 
   @spec get_and_update_data(
@@ -164,7 +180,9 @@ defmodule Membrane.Core.Child.PadModel do
     with {:ok, state} <- {assert_instance(state, pad_ref), state},
          {{:ok, out}, state} <-
            state
-           |> Bunch.Access.get_and_update_in(data_keys(pad_ref, keys), f) do
+           |> StateDispatcher.get_child(:pads)
+           |> Bunch.Access.get_and_update_in(data_keys(pad_ref, keys), f)
+           |> then(&StateDispatcher.update_child(state, pads: &1)) do
       {{:ok, out}, state}
     else
       {{:error, reason}, state} -> {{:error, reason}, state}
@@ -182,7 +200,9 @@ defmodule Membrane.Core.Child.PadModel do
     :ok = assert_instance(state, pad_ref)
 
     state
+    |> StateDispatcher.get_child(:pads)
     |> Bunch.Access.get_and_update_in(data_keys(pad_ref, keys), f)
+    |> then(&StateDispatcher.update_child(state, pads: &1))
   end
 
   @spec pop_data(Child.state_t(), Pad.ref_t()) ::
@@ -191,7 +211,9 @@ defmodule Membrane.Core.Child.PadModel do
     with {:ok, state} <- {assert_instance(state, pad_ref), state} do
       {data, state} =
         state
+        |> StateDispatcher.get_child(:pads)
         |> Bunch.Access.pop_in(data_keys(pad_ref))
+        |> then(&{elem(&1, 0), StateDispatcher.update_child(state, pads: elem(&1, 1))})
 
       {{:ok, data}, state}
     end
@@ -224,6 +246,6 @@ defmodule Membrane.Core.Child.PadModel do
 
   @spec data_keys(Pad.ref_t(), keys :: atom | [atom]) :: [atom]
   defp data_keys(pad_ref, keys \\ []) do
-    [:pads, :data, pad_ref | Bunch.listify(keys)]
+    [:data, pad_ref | Bunch.listify(keys)]
   end
 end

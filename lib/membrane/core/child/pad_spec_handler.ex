@@ -4,13 +4,12 @@ defmodule Membrane.Core.Child.PadSpecHandler do
   # Module parsing pads specifications in elements and bins.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
-  alias Membrane.Core.{Bin, Child, Element}
+  alias Membrane.Core.{Bin, Child, Element, StateDispatcher}
   alias Membrane.Core.Child.PadModel
   alias Membrane.Pad
 
-  require Membrane.Core.Bin.State
-  require Membrane.Core.Element.State
   require Membrane.Pad
 
   @private_input_pad_spec_keys [:demand_unit]
@@ -30,10 +29,7 @@ defmodule Membrane.Core.Child.PadSpecHandler do
       dynamic_currently_linking: []
     }
 
-    case elem(state, 0) do
-      :bin -> Bin.State.bin(state, pads: pads)
-      :element -> Element.State.element(state, pads: pads)
-    end
+    StateDispatcher.update_child(state, pads: pads)
   end
 
   @spec init_pad_info(Pad.description_t()) :: PadModel.pad_info_t()
@@ -42,12 +38,14 @@ defmodule Membrane.Core.Child.PadSpecHandler do
   end
 
   @spec get_pads(Child.state_t()) :: [{Pad.name_t(), Pad.description_t()}]
-  def get_pads(Bin.State.bin(module: module)) do
+  def get_pads(state) when StateDispatcher.bin?(state) do
+    module = StateDispatcher.get_child(state, :module)
+
     Enum.flat_map(module.membrane_pads(), &process_bin_pad/1)
   end
 
-  def get_pads(Element.State.element(module: module)) do
-    module.membrane_pads()
+  def get_pads(state) when StateDispatcher.element?(state) do
+    StateDispatcher.get_child(state, :module).membrane_pads()
   end
 
   defp process_bin_pad({name, spec}) do
