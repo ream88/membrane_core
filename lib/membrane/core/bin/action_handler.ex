@@ -1,9 +1,10 @@
 defmodule Membrane.Core.Bin.ActionHandler do
   @moduledoc false
   use Membrane.Core.CallbackHandler
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.Bin.State
-  alias Membrane.Core.{Message, Parent, TimerController}
+  alias Membrane.Core.{Message, Parent, StateDispatcher, TimerController}
   alias Membrane.{CallbackError, Notification, ParentSpec}
 
   require Membrane.Logger
@@ -43,7 +44,7 @@ defmodule Membrane.Core.Bin.ActionHandler do
 
   @impl CallbackHandler
   def handle_action({:start_timer, {id, interval}}, cb, params, state) do
-    clock = state.synchronization.clock_proxy
+    clock = StateDispatcher.get_bin(state, :synchronization).clock_proxy
     handle_action({:start_timer, {id, interval, clock}}, cb, params, state)
   end
 
@@ -60,7 +61,10 @@ defmodule Membrane.Core.Bin.ActionHandler do
 
   @impl CallbackHandler
   def handle_action(action, callback, _params, state) do
-    raise CallbackError, kind: :invalid_action, action: action, callback: {state.module, callback}
+    raise CallbackError,
+      kind: :invalid_action,
+      action: action,
+      callback: {StateDispatcher.get_bin(state, :module), callback}
   end
 
   @spec send_notification(Notification.t(), State.t()) :: {:ok, State.t()}

@@ -1,14 +1,14 @@
 defmodule Membrane.Core.Bin.LinkingBuffer do
   @moduledoc false
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.Bin.State
   alias Membrane.Core.Child.PadModel
-  alias Membrane.Core.Message
+  alias Membrane.Core.{Message, StateDispatcher}
   alias Membrane.Pad
 
   require Message
   require Pad
-  require State
 
   @type t :: %{Pad.name_t() => [Message.t()]}
 
@@ -31,7 +31,7 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
   """
   @spec store_or_send(Message.t(), Pad.ref_t(), State.t()) :: State.t()
   def store_or_send(msg, sender_pad, state) do
-    buf = State.bin(state, :linking_buffer)
+    buf = StateDispatcher.get_bin(state, :linking_buffer)
 
     with {:ok, %{pid: dest_pid, other_ref: other_ref}} <-
            PadModel.get_data(state, sender_pad),
@@ -41,12 +41,12 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
     else
       _unknown_or_linking ->
         new_buf = Map.update(buf, sender_pad, [msg], &[msg | &1])
-        State.bin(state, linking_buffer: new_buf)
+        StateDispatcher.update_bin(state, linking_buffer: new_buf)
     end
   end
 
   defp currently_linking?(pad, state),
-    do: pad in state.pads.dynamic_currently_linking
+    do: pad in StateDispatcher.get_bin(state, :pads).dynamic_currently_linking
 
   @doc """
   Sends messages stored for a given output pad.
@@ -54,7 +54,7 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
   """
   @spec flush_for_pad(Pad.ref_t(), State.t()) :: State.t()
   def flush_for_pad(pad, state) do
-    buf = state.linking_buffer
+    buf = StateDispatcher.get_bin(state, :linking_buffer)
 
     case Map.pop(buf, pad, []) do
       {[], ^buf} ->
@@ -62,13 +62,13 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
 
       {msgs, new_buf} ->
         msgs |> Enum.reverse() |> Enum.each(&do_flush(&1, pad, state))
-        State.bin(state, linking_buffer: new_buf)
+        StateDispatcher.update_bin(state, linking_buffer: new_buf)
     end
   end
 
   @spec flush_all_public_pads(State.t()) :: State.t()
   def flush_all_public_pads(state) do
-    buf = state.linking_buffer
+    buf = StateDispatcher.get_bin(state, :linking_buffer)
 
     public_pads =
       buf

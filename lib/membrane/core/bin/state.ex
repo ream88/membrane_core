@@ -5,12 +5,8 @@ defmodule Membrane.Core.Bin.State do
   # It does not represent state of bins you construct, it's a state used
   # internally in Membrane.
 
-  # use Bunch
-  # use Bunch.Access
-
   alias Membrane.Core.{Playback, Timer}
-  # TODO: mitigate cyclical imports?
-  # alias Membrane.Core.Bin.LinkingBuffer
+  alias Membrane.Core.Bin.LinkingBuffer
   alias Membrane.Core.Child.PadModel
   alias Membrane.Core.Parent.Link
   alias Membrane.Core.Parent.ChildrenModel
@@ -62,7 +58,7 @@ defmodule Membrane.Core.Bin.State do
     watcher: nil,
     controlling_pid: nil,
     crash_groups: %{},
-    # LinkingBuffer.new(),
+    # FIXME: LinkingBuffer.new() results in ElixirLS deadlock
     linking_buffer: Map.new(),
     children_log_metadata: [],
     links: []
