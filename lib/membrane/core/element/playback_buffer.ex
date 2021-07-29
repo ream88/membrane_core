@@ -7,7 +7,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
 
   use Bunch
   use Bunch.Access
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :element
 
   alias Membrane.Core.Child.PadModel
 
@@ -45,7 +45,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
   Stores message if it cannot be handled yet.
   """
   @spec store(message_t, State.t()) :: State.stateful_try_t()
-  def store(msg, State.element(playback: %Playback{state: :playing}) = state) do
+  def store(msg, State.state(playback: %Playback{state: :playing}) = state) do
     with {:ok, state} <- exec(msg, state) do
       {:ok, state}
     else
@@ -59,7 +59,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
 
   def store(
         Message.new(type, _args, _opts) = msg,
-        State.element(playback: %Playback{state: :prepared}) = state
+        State.state(playback: %Playback{state: :prepared}) = state
       )
       when type in [:event, :caps] do
     if state |> StateDispatcher.get_element(:playback_buffer) |> empty? do
@@ -86,21 +86,20 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
   can be handled in current playback state.
   """
   @spec eval(State.t()) :: State.stateful_try_t()
-  def eval(State.element(playback: %Playback{state: :playing}) = state) do
+  def eval(State.state(playback: %Playback{state: :playing}) = state) do
     Membrane.Logger.debug("Evaluating playback buffer")
 
     with {:ok, state} <-
            state
            |> StateDispatcher.get_element(:playback_buffer)
            |> Map.get(:q)
-           |> Bunch.Enum.try_reduce(state, &exec/2)
-         do
-          state
-          |> StateDispatcher.get_element(:playback_buffer)
-          |> Map.put(:q, @qe.new)
-          |> then(&StateDispatcher.update_element(state, playback_buffer: &1))
-          ~> {:ok, &1}
-         end
+           |> Bunch.Enum.try_reduce(state, &exec/2) do
+      state
+      |> StateDispatcher.get_element(:playback_buffer)
+      |> Map.put(:q, @qe.new)
+      |> then(&StateDispatcher.update_element(state, playback_buffer: &1))
+      ~> {:ok, &1}
+    end
   end
 
   def eval(state), do: {:ok, state}

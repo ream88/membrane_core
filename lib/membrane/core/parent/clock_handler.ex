@@ -1,11 +1,11 @@
 defmodule Membrane.Core.Parent.ClockHandler do
   @moduledoc false
 
+  use Membrane.Core.StateDispatcher, restrict: :parent
+
   alias Membrane.{Clock, Core, ParentError}
   alias Membrane.Core.StateDispatcher
   alias Membrane.Core.Parent.ChildEntryParser
-
-  require StateDispatcher
 
   @spec choose_clock(
           [ChildEntryParser.raw_child_entry_t()],
@@ -17,9 +17,9 @@ defmodule Membrane.Core.Parent.ClockHandler do
     synchronization = StateDispatcher.get_parent(state, :synchronization)
 
     components =
-      case elem(state, 0) do
-        :bin -> [%{name: Membrane.Parent, clock: synchronization.parent_clock}]
-        :pipeline -> []
+      case StateDispatcher.kind_of(state) do
+        Core.Bin.State -> [%{name: Membrane.Parent, clock: synchronization.parent_clock}]
+        Core.Pipeline.State -> []
       end
 
     components = components ++ children
@@ -39,7 +39,7 @@ defmodule Membrane.Core.Parent.ClockHandler do
     synchronization = StateDispatcher.get_parent(state, :synchronization)
     Clock.proxy_for(synchronization.clock_proxy, clock_provider.clock)
 
-    StateDispatcher.update(state,
+    StateDispatcher.update_parent(state,
       synchronization: Map.put(synchronization, :clock_provider, clock_provider)
     )
   end

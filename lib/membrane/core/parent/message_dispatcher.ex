@@ -1,14 +1,14 @@
 defmodule Membrane.Core.Parent.MessageDispatcher do
   @moduledoc false
+  use Membrane.Core.StateDispatcher, restrict: :parent
 
   import Membrane.Helper.GenServer
 
-  alias Membrane.Core.{Parent, Pipeline, TimerController}
+  alias Membrane.Core.{Parent, StateDispatcher, TimerController}
   alias Membrane.Core.Message
   alias Membrane.Core.Parent.{ChildLifeController, LifecycleController}
 
   require Message
-  require Pipeline.State
 
   @spec handle_message(Message.t(), Parent.state_t()) ::
           Membrane.Helper.GenServer.genserver_return_t()
@@ -67,18 +67,21 @@ defmodule Membrane.Core.Parent.MessageDispatcher do
   end
 
   defp inform_parent(state, msg, msg_params) do
-    if not pipeline?(state) and state.watcher,
-      do: Message.send(state.watcher, msg, [state.name | msg_params])
+    watcher = StateDispatcher.get_parent(state, :watcher)
+
+    if not StateDispatcher.pipeline?(state) and watcher do
+      name = StateDispatcher.get_parent(state, :name)
+      Message.send(watcher, msg, [name | msg_params])
+    end
   end
 
   defp is_parent_pid?(pid, state) do
-    state[:watcher] == pid
+    StateDispatcher.get_parent(state, :watcher) == pid
   end
 
   defp is_child_pid?(pid, state) do
-    Enum.any?(state.children, fn {_name, entry} -> entry.pid == pid end)
+    state
+    |> StateDispatcher.get_parent(:children)
+    |> Enum.any?(fn {_name, entry} -> entry.pid == pid end)
   end
-
-  defp pipeline?(Pipeline.State.pipeline()), do: true
-  defp pipeline?(_state), do: false
 end

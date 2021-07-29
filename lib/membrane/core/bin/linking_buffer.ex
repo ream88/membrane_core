@@ -1,6 +1,6 @@
 defmodule Membrane.Core.Bin.LinkingBuffer do
   @moduledoc false
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :bin
 
   alias Membrane.Core.Bin.State
   alias Membrane.Core.Child.PadModel

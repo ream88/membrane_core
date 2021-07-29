@@ -17,6 +17,7 @@ defmodule Membrane.Core.Element do
 
   use Bunch
   use GenServer
+  use Membrane.Core.StateDispatcher, restrict: :element
 
   import Membrane.Helper.GenServer
 
@@ -157,7 +158,7 @@ defmodule Membrane.Core.Element do
   end
 
   @impl GenServer
-  def handle_info({:DOWN, ref, :process, _pid, reason}, %{parent_monitor: ref} = state) do
+  def handle_info({:DOWN, ref, :process, _pid, reason}, State.state(parent_monitor: ref) = state) do
     {:ok, state} = LifecycleController.handle_pipeline_down(reason, state)
 
     {:stop, {:shutdown, :parent_crash}, state}

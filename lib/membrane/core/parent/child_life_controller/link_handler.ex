@@ -2,6 +2,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
   @moduledoc false
 
   use Bunch
+  use Membrane.Core.StateDispatcher, restrict: :parent
 
   alias Membrane.Core.{Bin, Child, Message, Parent, StateDispatcher, Telemetry}
   alias Membrane.Core.Child.PadModel
@@ -10,10 +11,8 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
   alias Membrane.LinkError
   alias Membrane.Pad
 
-  require Membrane.Core.Bin.State
   require Membrane.Core.Message
   require Membrane.Pad
-  require StateDispatcher
 
   @spec resolve_links([LinkParser.raw_link_t()], Parent.state_t()) ::
           [Parent.Link.t()]
@@ -85,12 +84,18 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
           Endpoint.t() | no_return
   defp resolve_endpoint(
          %Endpoint{child: {Membrane.Bin, :itself}} = endpoint,
-         Bin.State.bin() = state
-       ) do
+         state
+       )
+       when StateDispatcher.bin?(state) do
     %Endpoint{pad_spec: pad_spec} = endpoint
     priv_pad_spec = Membrane.Pad.get_corresponding_bin_pad(pad_spec)
 
-    withl pad: {:ok, priv_info} <- Map.fetch(state.pads.info, Pad.name_by_ref(priv_pad_spec)),
+    withl pad:
+            {:ok, priv_info} <-
+              Map.fetch(
+                StateDispatcher.get_parent(state, :pads).info,
+                Pad.name_by_ref(priv_pad_spec)
+              ),
           do: dynamic? = Pad.is_availability_dynamic(priv_info.availability),
           name: false <- dynamic? and Pad.is_pad_name(pad_spec),
           link: true <- not dynamic? or :ok == PadModel.assert_instance(state, pad_spec),
@@ -98,7 +103,8 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
       %Endpoint{endpoint | pid: self(), pad_ref: ref, pad_spec: priv_pad_spec}
     else
       pad: :error ->
-        raise LinkError, "Bin #{inspect(state.name)} does not have pad #{inspect(pad_spec)}"
+        raise LinkError,
+              "Bin #{inspect(StateDispatcher.get_parent(state, :name))} does not have pad #{inspect(pad_spec)}"
 
       name: true ->
         raise LinkError,
@@ -110,7 +116,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
 
       ref: {:error, :invalid_availability} ->
         raise LinkError,
-              "Dynamic pad ref #{inspect(pad_spec)} passed for static pad of bin #{inspect(state.name)}"
+              "Dynamic pad ref #{inspect(pad_spec)} passed for static pad of bin #{inspect(StateDispatcher.get_parent(state, :name))}"
     end
   end
 
@@ -155,20 +161,23 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
 
   # If the link involves the bin itself, make sure to call `handle_link` in the bin, to avoid
   # calling self() or calling a child that would call the bin, making a deadlock.
-  defp do_link(%Endpoint{child: {Membrane.Bin, :itself}} = from, to, Bin.State.bin() = state) do
+  defp do_link(%Endpoint{child: {Membrane.Bin, :itself}} = from, to, Bin.State.state() = state) do
     {{:ok, _info}, state} = Child.PadController.handle_link(:output, from, to, nil, state)
     state
   end
 
-  defp do_link(from, %Endpoint{child: {Membrane.Bin, :itself}} = to, Bin.State.bin() = state) do
+  defp do_link(from, %Endpoint{child: {Membrane.Bin, :itself}} = to, Bin.State.state() = state) do
     {{:ok, _info}, state} = Child.PadController.handle_link(:input, to, from, nil, state)
     state
   end
 
   defp do_link(from, to, state) do
     {:ok, _info} = Message.call(from.pid, :handle_link, [:output, from, to, nil])
-    state = Bunch.Access.update_in(state, [:links], &[%Link{from: from, to: to} | &1])
+
     state
+    |> StateDispatcher.get_parent(:links)
+    |> then(&[%Link{from: from, to: to} | &1])
+    |> then(&StateDispatcher.update_parent(state, links: &1))
   end
 
   defp send_linking_finished(links) do

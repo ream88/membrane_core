@@ -4,7 +4,7 @@ defmodule Membrane.Core.Element.EventController do
   # Module handling events incoming through input pads.
 
   use Bunch
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :element
 
   alias Membrane.{Event, Pad, Sync}
   alias Membrane.Core.{CallbackHandler, Events, InputBuffer, Message, Telemetry, StateDispatcher}
@@ -96,7 +96,6 @@ defmodule Membrane.Core.Element.EventController do
         state
       )
 
-
     if watcher = StateDispatcher.get_element(state, :watcher) do
       Message.send(watcher, callback, [StateDispatcher.get_element(state, :name), pad_ref])
     end
@@ -120,7 +119,11 @@ defmodule Membrane.Core.Element.EventController do
        |> Map.values()
        |> Enum.filter(&(&1.direction == :input))
        |> Enum.all?(& &1.start_of_stream?) do
-      :ok = state |> StateDispatcher.get_element(:synchronization) |> Map.get(:stream_sync) |> Sync.sync()
+      :ok =
+        state
+        |> StateDispatcher.get_element(:synchronization)
+        |> Map.get(:stream_sync)
+        |> Sync.sync()
     end
 
     {:ok, state}

@@ -4,7 +4,7 @@ defmodule Membrane.Core.Element.DemandHandler do
   # Module handling demands requested on output pads.
 
   use Bunch
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :element
 
   alias Membrane.Core.{InputBuffer, StateDispatcher}
   alias Membrane.Core.Child.PadModel
@@ -69,18 +69,22 @@ defmodule Membrane.Core.Element.DemandHandler do
   end
 
   @spec handle_delayed_demands(State.t()) :: State.stateful_try_t()
-  def handle_delayed_demands(State.element(delayed_demands: del_dem) = state)
+  def handle_delayed_demands(State.state(delayed_demands: del_dem) = state)
       when del_dem == %MapSet{} do
     {:ok, state}
   end
 
-  def handle_delayed_demands(State.element(delayed_demands: del_dem) = state) do
+  def handle_delayed_demands(State.state(delayed_demands: del_dem) = state) do
     # Taking random element of `:delayed_demands` is done to keep data flow
     # balanced among pads, i.e. to prevent situation where demands requested by
     # one pad are supplied right away while another one is waiting for buffers
     # potentially for a long time.
     [{pad_ref, action}] = del_dem |> Enum.take_random(1)
-    state = StateDispatcher.update_element(state, delayed_demands: del_dem |> MapSet.delete({pad_ref, action}))
+
+    state =
+      StateDispatcher.update_element(state,
+        delayed_demands: del_dem |> MapSet.delete({pad_ref, action})
+      )
 
     res =
       case action do
@@ -105,7 +109,7 @@ defmodule Membrane.Core.Element.DemandHandler do
       that way source will synchronously supply demand.
   """
   @spec handle_redemand(Pad.ref_t(), State.t()) :: {:ok, State.t()}
-  def handle_redemand(pad_ref, State.element(supplying_demand?: true) = state) do
+  def handle_redemand(pad_ref, State.state(supplying_demand?: true) = state) do
     state
     |> StateDispatcher.get_element(:delayed_demands)
     |> MapSet.put({pad_ref, :redemand})
@@ -134,7 +138,7 @@ defmodule Membrane.Core.Element.DemandHandler do
           Pad.ref_t(),
           State.t()
         ) :: {:ok, State.t()} | {{:error, any()}, State.t()}
-  def supply_demand(pad_ref, State.element(supplying_demand?: true) = state) do
+  def supply_demand(pad_ref, State.state(supplying_demand?: true) = state) do
     state
     |> StateDispatcher.get_element(:delayed_demands)
     |> MapSet.put({pad_ref, :supply})
@@ -172,7 +176,8 @@ defmodule Membrane.Core.Element.DemandHandler do
         Error while supplying demand on pad #{inspect(pad_ref)} of size #{inspect(pad_data.demand)}
         """)
 
-        {{:error, {:supply_demand, reason}}, StateDispatcher.update_element(state, supplying_demand?: false)}
+        {{:error, {:supply_demand, reason}},
+         StateDispatcher.update_element(state, supplying_demand?: false)}
     end
   end
 

@@ -9,13 +9,13 @@ defmodule Membrane.Core.PlaybackHandler do
   # `handle_prepared_to_playing` and `handle_prepared_to_stopped` callbacks.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.{Component, Message, StateDispatcher}
   alias Membrane.PlaybackState
 
   require Message
   require PlaybackState
-  require StateDispatcher
 
   @type handler_return_t ::
           {:ok | {:error, any()}, Component.state_t()} | {:stop, any(), Component.state_t()}

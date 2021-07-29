@@ -2,6 +2,7 @@ defmodule Membrane.Core.Parent.LifecycleController do
   @moduledoc false
   use Bunch
   use Membrane.Core.PlaybackHandler
+  use Membrane.Core.StateDispatcher, restrict: :parent
 
   alias Bunch.Type
   alias Membrane.{Child, Core, Notification, Pad, Sync}
@@ -22,7 +23,6 @@ defmodule Membrane.Core.Parent.LifecycleController do
   require Membrane.Core.Message
   require Membrane.Logger
   require Membrane.PlaybackState
-  require StateDispatcher
 
   @impl PlaybackHandler
   def handle_playback_state(old, new, state) do
@@ -63,7 +63,7 @@ defmodule Membrane.Core.Parent.LifecycleController do
         {:ok, state}
       end
 
-    is_bin = elem(state, 0) == :bin
+    is_bin = StateDispatcher.kind_of(state) == :bin
 
     if is_bin and new == :stopped do
       Core.Child.LifecycleController.unlink(state)

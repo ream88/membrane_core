@@ -1,9 +1,10 @@
 defmodule Membrane.Core.Pipeline.ActionHandler do
   @moduledoc false
   use Membrane.Core.CallbackHandler
+  use Membrane.Core.StateDispatcher, restrict: :pipeline
 
   alias Membrane.CallbackError
-  alias Membrane.Core.{Parent, TimerController}
+  alias Membrane.Core.{Parent, StateDispatcher, TimerController}
   alias Membrane.ParentSpec
 
   require Membrane.Logger
@@ -34,7 +35,7 @@ defmodule Membrane.Core.Pipeline.ActionHandler do
         raise CallbackError,
           kind: :invalid_action,
           action: action,
-          callback: {state.module, callback}
+          callback: {StateDispatcher.get_pipeline(state, :module), callback}
 
       error ->
         error
@@ -68,7 +69,7 @@ defmodule Membrane.Core.Pipeline.ActionHandler do
   end
 
   defp do_handle_action({:start_timer, {id, interval}}, cb, params, state) do
-    clock = state.synchronization.clock_proxy
+    clock = StateDispatcher.get_pipeline(state, :synchronization).clock_proxy
     do_handle_action({:start_timer, {id, interval, clock}}, cb, params, state)
   end
 
@@ -82,6 +83,7 @@ defmodule Membrane.Core.Pipeline.ActionHandler do
   end
 
   defp do_handle_action(action, callback, _params, state) do
-    raise CallbackError, kind: :invalid_action, action: action, callback: {state.module, callback}
+    module = StateDispatcher.get_pipeline(state, :module)
+    raise CallbackError, kind: :invalid_action, action: action, callback: {module, callback}
   end
 end

@@ -1,7 +1,7 @@
 defmodule Membrane.Core.Bin.ActionHandler do
   @moduledoc false
   use Membrane.Core.CallbackHandler
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :bin
 
   alias Membrane.Core.Bin.State
   alias Membrane.Core.{Message, Parent, StateDispatcher, TimerController}
@@ -9,7 +9,6 @@ defmodule Membrane.Core.Bin.ActionHandler do
 
   require Membrane.Logger
   require Message
-  require State
 
   @impl CallbackHandler
   def handle_action({:forward, children_messages}, _cb, _params, state) do
@@ -68,12 +67,12 @@ defmodule Membrane.Core.Bin.ActionHandler do
   end
 
   @spec send_notification(Notification.t(), State.t()) :: {:ok, State.t()}
-  defp send_notification(notification, State.bin(watcher: nil) = state) do
+  defp send_notification(notification, State.state(watcher: nil) = state) do
     Membrane.Logger.warn("Dropping notification #{inspect(notification)} as watcher is undefined")
     {:ok, state}
   end
 
-  defp send_notification(notification, State.bin(watcher: watcher, name: name) = state) do
+  defp send_notification(notification, State.state(watcher: watcher, name: name) = state) do
     Membrane.Logger.debug(
       "Sending notification #{inspect(notification)} (watcher: #{inspect(watcher)})"
     )

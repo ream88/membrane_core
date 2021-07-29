@@ -4,7 +4,7 @@ defmodule Membrane.Core.Child.PadSpecHandler do
   # Module parsing pads specifications in elements and bins.
 
   use Bunch
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :child
 
   alias Membrane.Core.{Bin, Child, Element, StateDispatcher}
   alias Membrane.Core.Child.PadModel

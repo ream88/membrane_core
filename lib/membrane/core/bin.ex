@@ -2,17 +2,17 @@ defmodule Membrane.Core.Bin do
   @moduledoc false
   use Bunch
   use GenServer
+  use Membrane.Core.StateDispatcher, restrict: :bin
 
   import Membrane.Helper.GenServer
 
   alias __MODULE__.{LinkingBuffer, State}
   alias Membrane.{CallbackError, Core, ComponentPath, Pad, Sync}
-  alias Membrane.Core.{CallbackHandler, Message}
+  alias Membrane.Core.{CallbackHandler, Message, StateDispatcher}
   alias Membrane.Core.Child.{PadController, PadSpecHandler}
 
   require Membrane.Core.Message
   require Membrane.Logger
-  require State
 
   @type options_t :: %{
           name: atom,
@@ -87,7 +87,7 @@ defmodule Membrane.Core.Bin do
     clock = if Bunch.Module.check_behaviour(module, :membrane_clock?), do: clock_proxy, else: nil
 
     state =
-      State.bin(
+      State.state(
         module: module,
         name: name,
         synchronization: %{
@@ -173,6 +173,9 @@ defmodule Membrane.Core.Bin do
 
   @impl GenServer
   def terminate(reason, state) do
-    :ok = state.module.handle_shutdown(reason, state.internal_state)
+    module = StateDispatcher.get_bin(state, :module)
+    internal_state = StateDispatcher.get_bin(state, :internal_state)
+
+    :ok = module.handle_shutdown(reason, internal_state)
   end
 end

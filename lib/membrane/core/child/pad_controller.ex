@@ -4,7 +4,7 @@ defmodule Membrane.Core.Child.PadController do
   # Module handling linking and unlinking pads.
 
   use Bunch
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :child
 
   alias Bunch.Type
   alias Membrane.{Core, LinkError, Pad, ParentSpec}
@@ -36,8 +36,11 @@ defmodule Membrane.Core.Child.PadController do
         ) :: Type.stateful_try_t(PadModel.pad_info_t(), state_t)
   def handle_link(direction, this, other, other_info, state) do
     name = this.pad_ref |> Pad.name_by_ref()
-    pads = StateDispatcher.get_child(state, :pads)
-    info = pads.info[name]
+
+    info =
+      state
+      |> StateDispatcher.get_child(:pads)
+      |> get_in([:info, name])
 
     {:ok, other_info} =
       if other_info do
@@ -288,7 +291,7 @@ defmodule Membrane.Core.Child.PadController do
          %{mode: :pull, direction: :input} = data,
          props,
          _other_info,
-         Core.Element.State.element()
+         Core.Element.State.state()
        ) do
     %{ref: ref, pid: pid, other_ref: other_ref, demand_unit: demand_unit} = data
     input_buf = InputBuffer.init(demand_unit, pid, other_ref, inspect(ref), props.buffer)

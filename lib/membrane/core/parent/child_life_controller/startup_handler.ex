@@ -1,6 +1,7 @@
 defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
   @moduledoc false
   use Bunch
+  use Membrane.Core.StateDispatcher, restrict: :parent
 
   alias Membrane.{CallbackError, ChildEntry, Clock, Core, ParentError, Sync}
   alias Membrane.Core.{CallbackHandler, Component, Message, Parent, StateDispatcher}
@@ -9,7 +10,6 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
   require Membrane.Core.Component
   require Membrane.Core.Message
   require Membrane.Logger
-  require StateDispatcher
 
   @spec check_if_children_names_unique([ChildEntryParser.raw_child_entry_t()], Parent.state_t()) ::
           :ok | no_return
@@ -88,12 +88,13 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
 
   @spec maybe_activate_syncs(%{Membrane.Child.name_t() => Sync.t()}, Parent.state_t()) ::
           :ok | {:error, :bad_activity_request}
-  def maybe_activate_syncs(syncs, %{playback: %{state: :playing}}) do
-    syncs |> MapSet.new(&elem(&1, 1)) |> Bunch.Enum.try_each(&Sync.activate/1)
-  end
+  def maybe_activate_syncs(syncs, state) do
+    playback_state = StateDispatcher.get_parent(state, :playback).state
 
-  def maybe_activate_syncs(_syncs, _state) do
-    :ok
+    case playback_state do
+      :playing -> syncs |> MapSet.new(&elem(&1, 1)) |> Bunch.Enum.try_each(&Sync.activate/1)
+      _ -> :ok
+    end
   end
 
   @spec exec_handle_spec_started([Membrane.Child.name_t()], Parent.state_t()) ::
@@ -102,9 +103,9 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
     context = Component.callback_context_generator(:parent, SpecStarted, state)
 
     action_handler =
-      case elem(state, 0) do
-        :bin -> Core.Bin.ActionHandler
-        :pipeline -> Core.Pipeline.ActionHandler
+      case StateDispatcher.kind_of(state) do
+        Core.Bin.State -> Core.Bin.ActionHandler
+        Core.Pipeline.State -> Core.Pipeline.ActionHandler
       end
 
     callback_res =

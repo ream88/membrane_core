@@ -15,9 +15,9 @@ defmodule Membrane.Core.Pipeline.State do
 
   require Record
 
-  @type pipeline ::
+  @type t ::
           record(
-            :pipeline,
+            :state,
             internal_state: Membrane.Pipeline.state_t(),
             playback: Playback.t(),
             module: module,
@@ -36,9 +36,7 @@ defmodule Membrane.Core.Pipeline.State do
             children_log_metadata: Keyword.t()
           )
 
-  @type t :: pipeline()
-
-  Record.defrecord(:pipeline, [
+  Record.defrecord(:state, __MODULE__, [
     :module,
     :synchronization,
     internal_state: nil,

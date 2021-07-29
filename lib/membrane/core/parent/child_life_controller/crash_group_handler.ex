@@ -1,13 +1,11 @@
 defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
   @moduledoc false
   # A module responsible for managing crash groups inside the state of pipeline.
+  use Membrane.Core.StateDispatcher, restrict: :pipeline
 
   alias Membrane.ParentSpec
-  alias Membrane.Core.Parent
-  alias Membrane.Core.Pipeline
+  alias Membrane.Core.{Parent, Pipeline, StateDispatcher}
   alias Membrane.Core.Parent.CrashGroup
-
-  require Pipeline.State
 
   @spec add_crash_group(
           ParentSpec.crash_group_spec_t(),
@@ -20,7 +18,9 @@ defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
     {group_name, mode} = group_spec
 
     state =
-      Bunch.Access.update_in(state, [:crash_groups, group_name], fn
+      state
+      |> StateDispatcher.get_pipeline(:crash_groups)
+      |> Map.update!(group_name, fn
         %CrashGroup{
           members: current_children_names,
           alive_members_pids: current_alive_members
@@ -39,6 +39,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
             alive_members_pids: children_pids
           }
       end)
+      |> then(&StateDispatcher.update_pipeline(state, crash_groups: &1))
 
     {:ok, state}
   end
@@ -46,10 +47,15 @@ defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
   @spec remove_crash_group_if_empty(Pipeline.State.t(), CrashGroup.name_t()) ::
           {:removed | :not_removed, Pipeline.State.t()}
   def remove_crash_group_if_empty(state, group_name) do
-    %CrashGroup{alive_members_pids: alive_members_pids} = state.crash_groups[group_name]
+    %CrashGroup{alive_members_pids: alive_members_pids} =
+      StateDispatcher.get_pipeline(state, :crash_groups)[group_name]
 
     if alive_members_pids == [] do
-      state = Bunch.Access.delete_in(state, [:crash_groups, group_name])
+      state =
+        state
+        |> StateDispatcher.get_pipeline(:crash_groups)
+        |> Map.delete(group_name)
+        |> then(&StateDispatcher.update_pipeline(state, crash_groups: &1))
 
       {:removed, state}
     else
@@ -60,18 +66,18 @@ defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
   @spec remove_member_of_crash_group(Pipeline.State.t(), CrashGroup.name_t(), pid()) ::
           Pipeline.State.t()
   def remove_member_of_crash_group(state, group_name, pid) do
-    Bunch.Access.update_in(
-      state,
-      [:crash_groups, group_name, :alive_members_pids],
-      &List.delete(&1, pid)
-    )
+    state
+    |> StateDispatcher.get_pipeline(:crash_groups)
+    |> update_in([group_name, :alive_members_pids], &List.delete(&1, pid))
+    |> then(&StateDispatcher.update_pipeline(state, crash_groups: &1))
   end
 
   @spec get_group_by_member_pid(pid(), Parent.state_t()) ::
           {:ok, CrashGroup.t()} | {:error, :not_member}
   def get_group_by_member_pid(member_pid, state) do
     crash_group =
-      state.crash_groups
+      state
+      |> StateDispatcher.get_pipeline(:crash_groups)
       |> Map.values()
       |> Enum.find(fn %CrashGroup{alive_members_pids: alive_members_pids} ->
         member_pid in alive_members_pids
@@ -85,10 +91,9 @@ defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
 
   @spec set_triggered(Pipeline.State.t(), CrashGroup.name_t(), boolean()) :: Pipeline.State.t()
   def set_triggered(state, group_name, value \\ true) do
-    Bunch.Access.put_in(
-      state,
-      [:crash_groups, group_name, :triggered?],
-      value
-    )
+    state
+    |> StateDispatcher.get_pipeline(:crash_groups)
+    |> put_in([group_name, :triggered?], value)
+    |> then(&StateDispatcher.update_pipeline(state, crash_groups: &1))
   end
 end

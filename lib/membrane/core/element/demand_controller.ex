@@ -4,7 +4,7 @@ defmodule Membrane.Core.Element.DemandController do
   # Module handling demands incoming through output pads.
 
   use Bunch
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :element
 
   alias Membrane.Core.{CallbackHandler, StateDispatcher}
   alias Membrane.Core.Child.PadModel
@@ -29,7 +29,8 @@ defmodule Membrane.Core.Element.DemandController do
   end
 
   @spec ignore?(Pad.ref_t(), State.t()) :: boolean()
-  defp ignore?(pad_ref, state), do: StateDispatcher.get_element(state, :pads).data[pad_ref].mode == :push
+  defp ignore?(pad_ref, state),
+    do: StateDispatcher.get_element(state, :pads).data[pad_ref].mode == :push
 
   @spec do_handle_demand(Pad.ref_t(), non_neg_integer, State.t()) ::
           State.stateful_try_t()

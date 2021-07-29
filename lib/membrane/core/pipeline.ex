@@ -1,14 +1,14 @@
 defmodule Membrane.Core.Pipeline do
   @moduledoc false
   use GenServer
+  use Membrane.Core.StateDispatcher, restrict: :pipeline
 
   alias __MODULE__.{ActionHandler, State}
   alias Membrane.Clock
-  alias Membrane.Core.CallbackHandler
+  alias Membrane.Core.{CallbackHandler, StateDispatcher}
   alias Membrane.Core.Parent.MessageDispatcher
 
   require Membrane.Logger
-  require State
 
   @impl GenServer
   def init({module, pipeline_options}) do
@@ -18,7 +18,7 @@ defmodule Membrane.Core.Pipeline do
     {:ok, clock} = Clock.start_link(proxy: true)
 
     state =
-      State.pipeline(
+      State.state(
         module: module,
         synchronization: %{
           clock_proxy: clock,
@@ -46,6 +46,9 @@ defmodule Membrane.Core.Pipeline do
 
   @impl GenServer
   def terminate(reason, state) do
-    :ok = state.module.handle_shutdown(reason, state.internal_state)
+    module = StateDispatcher.get_pipeline(state, :module)
+    internal_state = StateDispatcher.get_pipeline(state, :internal_state)
+
+    :ok = module.handle_shutdown(reason, internal_state)
   end
 end

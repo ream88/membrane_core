@@ -15,9 +15,9 @@ defmodule Membrane.Core.Bin.State do
 
   require Record
 
-  @type bin ::
+  @type t ::
           record(
-            :bin,
+            :state,
             internal_state: Membrane.Bin.state_t() | nil,
             playback: Playback.t(),
             module: module,
@@ -45,9 +45,7 @@ defmodule Membrane.Core.Bin.State do
             children_log_metadata: Keyword.t()
           )
 
-  @type t :: bin()
-
-  Record.defrecord(:bin, [
+  Record.defrecord(:state, __MODULE__, [
     :module,
     :synchronization,
     internal_state: nil,

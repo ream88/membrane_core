@@ -1,12 +1,13 @@
 defmodule Membrane.Core.TimerController do
   @moduledoc false
   use Bunch
+  use Membrane.Core.StateDispatcher
+
   alias Membrane.Clock
   alias Membrane.Core.{CallbackHandler, Component, StateDispatcher, Timer}
 
   require Membrane.Core.Component
   require Membrane.Element.CallbackContext.Tick
-  require StateDispatcher
 
   @spec start_timer(Timer.id_t(), Timer.interval_t(), Clock.t(), Component.state_t()) ::
           {:ok, Component.state_t()}

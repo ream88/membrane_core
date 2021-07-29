@@ -6,7 +6,7 @@ defmodule Membrane.Core.Element.LifecycleController do
 
   use Bunch
   use Membrane.Core.PlaybackHandler
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :element
 
   alias Membrane.{Clock, Core, Element, Sync}
   alias Membrane.Core.{CallbackHandler, Message, StateDispatcher}
@@ -23,16 +23,21 @@ defmodule Membrane.Core.Element.LifecycleController do
   Performs initialization tasks and executes `handle_init` callback.
   """
   @spec handle_init(Element.options_t(), State.t()) :: State.stateful_try_t()
-  def handle_init(options, State.element(module: module) = state) do
+  def handle_init(options, State.state(module: module) = state) do
     Membrane.Logger.debug(
       "Initializing element: #{inspect(module)}, options: #{inspect(options)}"
     )
 
-    :ok = state |> StateDispatcher.get_element(:synchronization) |> Map.get(:stream_sync) |> Sync.register()
+    :ok =
+      state
+      |> StateDispatcher.get_element(:synchronization)
+      |> Map.get(:stream_sync)
+      |> Sync.register()
 
     state =
       if Bunch.Module.check_behaviour(module, :membrane_clock?) do
         {:ok, clock} = Clock.start_link()
+
         state
         |> StateDispatcher.get_element(:synchronization)
         |> Map.put(:clock, clock)

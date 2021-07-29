@@ -6,13 +6,13 @@ defmodule Membrane.Core.CallbackHandler do
   # results.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Bunch.Type
   alias Membrane.CallbackError
   alias Membrane.Core.StateDispatcher
 
   require Membrane.Logger
-  require StateDispatcher
 
   @type state_t :: Membrane.Core.Component.state_t()
 

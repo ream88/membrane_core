@@ -8,7 +8,7 @@ defmodule Membrane.Core.Bin.CallbackContext do
     name: Membrane.Bin.name_t(),
     children: %{Membrane.Child.name_t() => Membrane.ChildEntry.t()}
 
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :bin
 
   alias Membrane.Core.StateDispatcher
 

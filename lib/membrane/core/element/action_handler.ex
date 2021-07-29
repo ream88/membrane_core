@@ -5,7 +5,7 @@ defmodule Membrane.Core.Element.ActionHandler do
 
   use Bunch
   use Membrane.Core.CallbackHandler
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :element
 
   import Membrane.Pad, only: [is_pad_ref: 1]
 
@@ -45,7 +45,7 @@ defmodule Membrane.Core.Element.ActionHandler do
          {action, _},
          cb,
          _params,
-         State.element(playback: %{state: :stopped}) = state
+         State.state(playback: %{state: :stopped}) = state
        )
        when action in [:buffer, :event, :caps, :demand, :redemand, :forward, :end_of_stream] and
               cb != :handle_stopped_to_prepared do
@@ -88,13 +88,13 @@ defmodule Membrane.Core.Element.ActionHandler do
          {:buffer, {pad_ref, buffers}},
          cb,
          _params,
-         State.element(type: type) = state
+         State.state(type: type) = state
        )
        when type in [:source, :filter] and is_pad_ref(pad_ref) do
     send_buffer(pad_ref, buffers, cb, state)
   end
 
-  defp do_handle_action({:caps, {pad_ref, caps}}, _cb, _params, State.element(type: type) = state)
+  defp do_handle_action({:caps, {pad_ref, caps}}, _cb, _params, State.state(type: type) = state)
        when type in [:source, :filter] and is_pad_ref(pad_ref) do
     send_caps(pad_ref, caps, state)
   end
@@ -107,13 +107,13 @@ defmodule Membrane.Core.Element.ActionHandler do
     end)
   end
 
-  defp do_handle_action({:redemand, out_ref}, cb, _params, State.element(type: type) = state)
+  defp do_handle_action({:redemand, out_ref}, cb, _params, State.state(type: type) = state)
        when type in [:source, :filter] and is_pad_ref(out_ref) and
               {type, cb} != {:filter, :handle_demand} do
     handle_redemand(out_ref, state)
   end
 
-  defp do_handle_action({:forward, data}, cb, params, State.element(type: :filter) = state)
+  defp do_handle_action({:forward, data}, cb, params, State.state(type: :filter) = state)
        when cb in [
               :handle_caps,
               :handle_event,
@@ -146,7 +146,7 @@ defmodule Membrane.Core.Element.ActionHandler do
          {:demand, pad_ref},
          cb,
          params,
-         State.element(type: type) = state
+         State.state(type: type) = state
        )
        when is_pad_ref(pad_ref) and type in [:sink, :filter] do
     do_handle_action({:demand, {pad_ref, 1}}, cb, params, state)
@@ -156,7 +156,7 @@ defmodule Membrane.Core.Element.ActionHandler do
          {:demand, {pad_ref, size}},
          cb,
          _params,
-         State.element(type: type) = state
+         State.state(type: type) = state
        )
        when is_pad_ref(pad_ref) and is_demand_size(size) and type in [:sink, :filter] do
     supply_demand(pad_ref, size, cb, state)
@@ -192,14 +192,17 @@ defmodule Membrane.Core.Element.ActionHandler do
          {:end_of_stream, pad_ref},
          _callback,
          _params,
-         State.element(type: type, playback: %{state: :playing}) = state
+         State.state(type: type, playback: %{state: :playing}) = state
        )
        when is_pad_ref(pad_ref) and type != :sink do
     send_event(pad_ref, %Events.EndOfStream{}, state)
   end
 
   defp do_handle_action(action, callback, _params, state) do
-    raise CallbackError, kind: :invalid_action, action: action, callback: {StateDispatcher.get_element(state, :module), callback}
+    raise CallbackError,
+      kind: :invalid_action,
+      action: action,
+      callback: {StateDispatcher.get_element(state, :module), callback}
   end
 
   @impl CallbackHandler
@@ -250,7 +253,7 @@ defmodule Membrane.Core.Element.ActionHandler do
          _pad_ref,
          _buffer,
          callback,
-         State.element(playback: %{state: playback_state}) = state
+         State.state(playback: %{state: playback_state}) = state
        )
        when playback_state != :playing and callback != :handle_prepared_to_playing do
     {{:error, {:playback_state, playback_state}}, state}
@@ -349,7 +352,7 @@ defmodule Membrane.Core.Element.ActionHandler do
          _pad_ref,
          _size,
          callback,
-         State.element(playback: %{state: playback_state}) = state
+         State.state(playback: %{state: playback_state}) = state
        )
        when playback_state != :playing and callback != :handle_prepared_to_playing do
     {{:error, {:playback_state, playback_state}}, state}
@@ -384,7 +387,8 @@ defmodule Membrane.Core.Element.ActionHandler do
   end
 
   @spec handle_redemand(Pad.ref_t(), State.t()) :: State.stateful_try_t()
-  defp handle_redemand(out_ref, State.element(type: type) = state) when type in [:source, :filter] do
+  defp handle_redemand(out_ref, State.state(type: type) = state)
+       when type in [:source, :filter] do
     withl data: {:ok, pad_data} <- PadModel.get_data(state, out_ref),
           dir: %{direction: :output} <- pad_data,
           mode: %{mode: :pull} <- pad_data do
@@ -431,7 +435,7 @@ defmodule Membrane.Core.Element.ActionHandler do
   defp handle_event(_pad_ref, _event, state), do: {:ok, state}
 
   @spec send_notification(Notification.t(), State.t()) :: {:ok, State.t()}
-  defp send_notification(notification, State.element(watcher: nil) = state) do
+  defp send_notification(notification, State.state(watcher: nil) = state) do
     Membrane.Logger.debug_verbose(
       "Dropping notification #{inspect(notification)} as watcher is undefined"
     )
@@ -439,7 +443,7 @@ defmodule Membrane.Core.Element.ActionHandler do
     {:ok, state}
   end
 
-  defp send_notification(notification, State.element(watcher: watcher, name: name) = state) do
+  defp send_notification(notification, State.state(watcher: watcher, name: name) = state) do
     Membrane.Logger.debug_verbose(
       "Sending notification #{inspect(notification)} (watcher: #{inspect(watcher)})"
     )

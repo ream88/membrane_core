@@ -4,7 +4,7 @@ defmodule Membrane.Core.Element.BufferController do
   # Module handling buffers incoming through input pads.
 
   use Bunch
-  use Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher, restrict: :element
 
   alias Membrane.{Buffer, Pad}
   alias Membrane.Core.{CallbackHandler, InputBuffer}
@@ -40,7 +40,7 @@ defmodule Membrane.Core.Element.BufferController do
         ) :: State.stateful_try_t()
   def exec_buffer_handler(pad_ref, buffers, params \\ %{}, state)
 
-  def exec_buffer_handler(pad_ref, buffers, params, State.element(type: :filter) = state) do
+  def exec_buffer_handler(pad_ref, buffers, params, State.state(type: :filter) = state) do
     require CallbackContext.Process
 
     CallbackHandler.exec_and_handle_callback(
@@ -52,7 +52,7 @@ defmodule Membrane.Core.Element.BufferController do
     )
   end
 
-  def exec_buffer_handler(pad_ref, buffers, params, State.element(type: :sink) = state) do
+  def exec_buffer_handler(pad_ref, buffers, params, State.state(type: :sink) = state) do
     require CallbackContext.Write
 
     CallbackHandler.exec_and_handle_callback(

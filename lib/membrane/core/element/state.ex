@@ -20,9 +20,9 @@ defmodule Membrane.Core.Element.State do
   @type stateful_try_t :: Type.stateful_try_t(t)
   @type stateful_try_t(value) :: Type.stateful_try_t(value, t)
 
-  @type element ::
+  @type t ::
           record(
-            :element,
+            :state,
             module: module,
             type: Element.type_t(),
             name: Element.name_t(),
@@ -44,9 +44,7 @@ defmodule Membrane.Core.Element.State do
             }
           )
 
-  @type t :: element()
-
-  Record.defrecord(:element, [
+  Record.defrecord(:state, __MODULE__, [
     :module,
     :type,
     :name,
@@ -73,7 +71,7 @@ defmodule Membrane.Core.Element.State do
           parent_monitor: reference()
         }) :: t
   def new(options) do
-    element(
+    state(
       module: options.module,
       type: options.module.membrane_element_type(),
       name: options.name,

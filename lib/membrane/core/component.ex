@@ -1,20 +1,16 @@
 defmodule Membrane.Core.Component do
   @moduledoc false
+  use Membrane.Core.StateDispatcher
 
   @type state_t ::
           Membrane.Core.Pipeline.State.t()
           | Membrane.Core.Bin.State.t()
           | Membrane.Core.Element.State.t()
 
-  @type module_t ::
-          Membrane.Core.Pipeline.State
-          | Membrane.Core.Bin.State
-          | Membrane.Core.Element.State
-
-  @spec action_handler(module_t) :: module
+  @spec action_handler(state_t) :: module
   [Pipeline, Bin, Element]
   |> Enum.map(fn component ->
-    def action_handler(unquote(Module.concat([Membrane.Core, component, State]))),
+    def action_handler(unquote(Module.concat([Membrane.Core, component, State])).state()),
       do: unquote(Module.concat([Membrane.Core, component, ActionHandler]))
   end)
 
@@ -41,19 +37,20 @@ defmodule Membrane.Core.Component do
       restrict
       |> Enum.flat_map(fn component ->
         quote do
-          unquote(state(component)) ->
+          unquote(Membrane.Core.StateDispatcher.kind_of(component)) ->
             &unquote(context(component, module)).from_state(&1, unquote(args))
         end
       end)
 
     quote do
       unquote_splicing(requires)
-      unquote({:case, [], [state, [do: clauses]]})
+
+      case Membrane.Core.StateDispatcher.kind_of(unquote(state)) do
+        unquote(clauses)
+      end
     end
   end
 
   defp context(component, module),
     do: Module.concat([Membrane, component, CallbackContext, module])
-
-  defp state(component), do: Module.concat([Membrane.Core, component, State])
 end
