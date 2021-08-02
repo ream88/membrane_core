@@ -5,7 +5,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandlerTest do
 
   alias Membrane.ChildEntry
 
-  alias Membrane.Core.Message
+  alias Membrane.Core.{Message, StateDispatcher}
   alias Membrane.Core.Parent.LinkParser
   alias Membrane.Core.Parent.ChildLifeController.LinkHandler
   alias Membrane.LinkError
@@ -14,12 +14,13 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandlerTest do
 
   require Membrane.Core.Message
   require Membrane.Pad
+  require StateDispatcher
 
   defp get_state(child_module, opts \\ []) do
     pid = Keyword.get(opts, :pid, nil)
     availability = Keyword.get(opts, :availability, :always)
 
-    %Membrane.Core.Bin.State{
+    StateDispatcher.bin(
       module: nil,
       name: :my_bin,
       synchronization: %{},
@@ -35,7 +36,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandlerTest do
           |> Map.new(),
         data: %{}
       }
-    }
+    )
   end
 
   defp endpoints(links) do
@@ -87,12 +88,15 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandlerTest do
           link_bin_input(Pad.ref(:input, :x)) |> to(:a) |> to_bin_output(Pad.ref(:output, :y))
         ])
 
-      state =
-        get_state(TestFilter, availability: :on_request)
-        |> put_in([:pads, :data], %{
-          Pad.ref(:input, :x) => %Pad.Data{},
-          Pad.ref(:output, :y) => %Pad.Data{}
-        })
+      state = get_state(TestFilter, availability: :on_request)
+
+      state
+      |> StateDispatcher.get_bin(:pads)
+      |> Map.put(:data, %{
+        Pad.ref(:input, :x) => %Pad.Data{},
+        Pad.ref(:output, :y) => %Pad.Data{}
+      })
+      |> then(&StateDispatcher.update_bin(state, pads: &1))
 
       resolved_links = LinkHandler.resolve_links(links, state)
       endpoints(resolved_links) |> Enum.each(&assert &1.pad_ref == &1.pad_spec)
@@ -184,7 +188,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandlerTest do
 
       @impl true
       def handle_call(msg, _from, state) do
-        send(state.pid, msg)
+        send(StateDispatcher.get_bin(state, :pid), msg)
 
         reply =
           case msg do

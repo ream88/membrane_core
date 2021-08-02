@@ -2,10 +2,10 @@ defmodule Membrane.Core.ElementTest do
   use ExUnit.Case, async: true
 
   alias __MODULE__.SomeElement
-  alias Membrane.Core.Element
-  alias Membrane.Core.Message
+  alias Membrane.Core.{Element, Message, StateDispatcher}
 
   require Membrane.Core.Message
+  require StateDispatcher
 
   defmodule SomeElement do
     use Membrane.Source
@@ -94,27 +94,27 @@ defmodule Membrane.Core.ElementTest do
                get_state()
              )
 
-    assert state.playback.state == :prepared
+    assert state |> StateDispatcher.get_element(:playback) |> Map.get(:state) == :prepared
 
     assert {:noreply, state} =
              Element.handle_info(Message.new(:change_playback_state, :playing), state)
 
-    assert state.playback.state == :playing
+    assert state |> StateDispatcher.get_element(:playback) |> Map.get(:state) == :playing
 
     assert {:noreply, state} =
              Element.handle_info(Message.new(:change_playback_state, :prepared), state)
 
-    assert state.playback.state == :prepared
+    assert state |> StateDispatcher.get_element(:playback) |> Map.get(:state) == :prepared
 
     assert {:noreply, state} =
              Element.handle_info(Message.new(:change_playback_state, :stopped), state)
 
-    assert state.playback.state == :stopped
+    assert state |> StateDispatcher.get_element(:playback) |> Map.get(:state) == :stopped
 
     assert {:noreply, state} =
              Element.handle_info(Message.new(:change_playback_state, :playing), state)
 
-    assert state.playback.state == :playing
+    assert state |> StateDispatcher.get_element(:playback) |> Map.get(:state) == :playing
   end
 
   test "should update watcher and reply as expected" do
@@ -125,8 +125,13 @@ defmodule Membrane.Core.ElementTest do
                get_state()
              )
 
-    assert reply == %{clock: state.synchronization.clock}
-    assert state.watcher == :c.pid(0, 255, 0)
+    clock =
+      state
+      |> StateDispatcher.get_element(:synchronization)
+      |> Map.get(:clock)
+
+    assert reply == %{clock: clock}
+    assert StateDispatcher.get_element(state, :watcher) == :c.pid(0, 255, 0)
   end
 
   test "should set controlling pid" do
@@ -137,7 +142,7 @@ defmodule Membrane.Core.ElementTest do
                get_state()
              )
 
-    assert state.controlling_pid == :c.pid(0, 255, 0)
+    assert StateDispatcher.get_element(state, :controlling_pid) == :c.pid(0, 255, 0)
   end
 
   test "should store demand/buffer/caps/event when not playing" do
@@ -159,21 +164,24 @@ defmodule Membrane.Core.ElementTest do
   test "should update demand" do
     msg = Message.new(:demand, 10, for_pad: :output)
     assert {:noreply, state} = Element.handle_info(msg, playing_state())
-    assert state.pads.data.output.demand == 10
+    assert state |> StateDispatcher.get_element(:pads) |> get_in([:data, :output, :demand]) == 10
   end
 
   test "should store incoming buffers in input buffer" do
     msg = Message.new(:buffer, [%Membrane.Buffer{payload: <<123>>}], for_pad: :input)
     assert {:noreply, state} = Element.handle_info(msg, playing_state())
-    assert state.pads.data.input.input_buf.current_size == 1
+
+    assert state
+           |> StateDispatcher.get_element(:pads)
+           |> get_in([:data, :input, :input_buf, :current_size]) == 1
   end
 
   test "should assign incoming caps to the pad and forward them" do
     assert {:noreply, state} =
              Element.handle_info(Message.new(:caps, :caps, for_pad: :input), playing_state())
 
-    assert state.pads.data.input.caps == :caps
-    assert state.pads.data.output.caps == :caps
+    assert state |> StateDispatcher.get_element(:pads) |> get_in([:data, :input, :caps]) == :caps
+    assert state |> StateDispatcher.get_element(:pads) |> get_in([:data, :output, :caps]) == :caps
 
     assert_receive Message.new(:caps, :caps, for_pad: :input)
   end
@@ -214,7 +222,7 @@ defmodule Membrane.Core.ElementTest do
            }
 
     assert %Membrane.Pad.Data{pid: ^pid, other_ref: :input, other_demand_unit: :buffers} =
-             state.pads.data.output
+             state |> StateDispatcher.get_element(:pads) |> get_in([:data, :output])
 
     assert {:reply, :ok, _state} = Element.handle_call(Message.new(:linking_finished), nil, state)
   end
@@ -223,14 +231,17 @@ defmodule Membrane.Core.ElementTest do
     assert {:noreply, state} =
              Element.handle_info(Message.new(:handle_unlink, :input), linked_state())
 
-    refute Map.has_key?(state.pads.data, :input)
+    refute state |> StateDispatcher.get_element(:pads) |> Map.get(:data) |> Map.has_key?(:input)
   end
 
   test "should update timer on each tick" do
     {:ok, clock} = Membrane.Clock.start_link()
     {:ok, state} = Membrane.Core.TimerController.start_timer(:timer, 1000, clock, get_state())
     assert {:noreply, state} = Element.handle_info(Message.new(:timer_tick, :timer), state)
-    assert state.synchronization.timers.timer.time_passed == 2000
+
+    assert state
+           |> StateDispatcher.get_element(:synchronization)
+           |> get_in([:timers, :timer, :time_passed]) == 2000
   end
 
   test "should update clock ratio" do
@@ -239,14 +250,17 @@ defmodule Membrane.Core.ElementTest do
 
     assert {:noreply, state} = Element.handle_info({:membrane_clock_ratio, clock, 123}, state)
 
-    assert state.synchronization.timers.timer.ratio == 123
+    assert state
+           |> StateDispatcher.get_element(:synchronization)
+           |> get_in([:timers, :timer, :ratio]) == 123
   end
 
   test "should set stream sync" do
     assert {:reply, :ok, state} =
              Element.handle_call(Message.new(:set_stream_sync, :sync), nil, get_state())
 
-    assert state.synchronization.stream_sync == :sync
+    assert state |> StateDispatcher.get_element(:synchronization) |> Map.get(:stream_sync) ==
+             :sync
   end
 
   test "should fail on invalid message" do

@@ -1,6 +1,11 @@
 defmodule Membrane.ClockTest do
   use ExUnit.Case
 
+  alias Membrane.Core.{Pipeline.State, StateDispatcher}
+
+  require State
+  require StateDispatcher
+
   @module Membrane.Clock
 
   @initial_ratio 1
@@ -162,7 +167,7 @@ defmodule Membrane.ClockTest do
 
   describe "Clock election in parent" do
     alias Membrane.Clock
-    alias Membrane.Core.{Pipeline.State, Parent.ClockHandler}
+    alias Membrane.Core.Parent.ClockHandler
     alias Membrane.ChildEntry
 
     test "when provider is specified" do
@@ -174,14 +179,15 @@ defmodule Membrane.ClockTest do
         %ChildEntry{name: :el2, clock: clock, pid: :c.pid(0, 2, 0)}
       ]
 
-      dummy_pipeline_state = %State{
-        module: __MODULE__,
-        synchronization: %{clock_proxy: proxy_clock}
-      }
+      dummy_pipeline_state =
+        StateDispatcher.pipeline(
+          module: __MODULE__,
+          synchronization: %{clock_proxy: proxy_clock}
+        )
 
-      assert %State{
+      assert State.state(
                synchronization: %{clock_proxy: result_proxy, clock_provider: result_provider}
-             } = ClockHandler.choose_clock(children, :el2, dummy_pipeline_state)
+             ) = ClockHandler.choose_clock(children, :el2, dummy_pipeline_state)
 
       assert %{choice: :manual, clock: ^clock, provider: :el2} = result_provider
       assert ^proxy_clock = result_proxy
@@ -196,10 +202,11 @@ defmodule Membrane.ClockTest do
         %ChildEntry{name: :el2, clock: clock, pid: :c.pid(0, 2, 0)}
       ]
 
-      dummy_pipeline_state = %State{
-        module: __MODULE__,
-        synchronization: %{clock_proxy: proxy_clock, clock_provider: %{choice: :auto}}
-      }
+      dummy_pipeline_state =
+        StateDispatcher.pipeline(
+          module: __MODULE__,
+          synchronization: %{clock_proxy: proxy_clock, clock_provider: %{choice: :auto}}
+        )
 
       assert_raise Membrane.ParentError, ~r/.*el1.*clock provider/, fn ->
         ClockHandler.choose_clock(children, :el1, dummy_pipeline_state)
@@ -217,10 +224,11 @@ defmodule Membrane.ClockTest do
         %ChildEntry{name: :el3, clock: clock2, pid: :c.pid(0, 3, 0)}
       ]
 
-      dummy_pipeline_state = %State{
-        module: __MODULE__,
-        synchronization: %{clock_proxy: proxy_clock, clock_provider: %{choice: :auto}}
-      }
+      dummy_pipeline_state =
+        StateDispatcher.pipeline(
+          module: __MODULE__,
+          synchronization: %{clock_proxy: proxy_clock, clock_provider: %{choice: :auto}}
+        )
 
       assert_raise Membrane.ParentError, ~r/.*multiple components.*/, fn ->
         ClockHandler.choose_clock(children, nil, dummy_pipeline_state)
@@ -237,14 +245,15 @@ defmodule Membrane.ClockTest do
         %ChildEntry{name: :el3, pid: :c.pid(0, 3, 0)}
       ]
 
-      dummy_pipeline_state = %State{
-        module: __MODULE__,
-        synchronization: %{clock_proxy: proxy_clock, clock_provider: %{choice: :auto}}
-      }
+      dummy_pipeline_state =
+        StateDispatcher.pipeline(
+          module: __MODULE__,
+          synchronization: %{clock_proxy: proxy_clock, clock_provider: %{choice: :auto}}
+        )
 
-      assert %State{
+      assert State.state(
                synchronization: %{clock_proxy: result_proxy, clock_provider: result_provider}
-             } = ClockHandler.choose_clock(children, nil, dummy_pipeline_state)
+             ) = ClockHandler.choose_clock(children, nil, dummy_pipeline_state)
 
       assert %{choice: :auto, clock: ^clock, provider: :el2} = result_provider
       assert ^proxy_clock = result_proxy

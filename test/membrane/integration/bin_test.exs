@@ -3,9 +3,14 @@ defmodule Membrane.Core.BinTest do
 
   import Membrane.Testing.Assertions
 
+  alias Membrane.Core.StateDispatcher
+  alias Membrane.Core.Bin.State
   alias Membrane.Support.Bin.TestBins
   alias Membrane.Support.Bin.TestBins.{TestDynamicPadFilter, TestFilter}
   alias Membrane.Testing
+
+  require State
+  require StateDispatcher
 
   describe "Starting and transmitting buffers" do
     test "in simple, flat use case" do
@@ -244,15 +249,15 @@ defmodule Membrane.Core.BinTest do
     test "Bin is clock_provider" do
       {:ok, pid} = ClockPipeline.start_link()
 
-      %Membrane.Core.Pipeline.State{synchronization: %{clock_provider: pipeline_clock_provider}} =
+      State.state(synchronization: %{clock_provider: pipeline_clock_provider}) =
         state = :sys.get_state(pid)
 
       assert %{choice: :manual, clock: clock1, provider: :bin_child} = pipeline_clock_provider
       refute is_nil(clock1)
 
-      %{pid: bin_pid} = state.children[:bin_child]
+      %{pid: bin_pid} = StateDispatcher.get_pipeline(state, :children)[:bin_child]
 
-      %Membrane.Core.Bin.State{synchronization: %{clock_provider: bin_clock_provider}} =
+      State.state(synchronization: %{clock_provider: bin_clock_provider}) =
         :sys.get_state(bin_pid)
 
       assert %{choice: :manual, clock: clock2, provider: :element_child} = bin_clock_provider
@@ -273,7 +278,7 @@ defmodule Membrane.Core.BinTest do
 
   defp get_child_pid(last_child_pid, [child | children]) when is_pid(last_child_pid) do
     state = :sys.get_state(last_child_pid)
-    %{pid: child_pid} = state.children[child]
+    %{pid: child_pid} = StateDispatcher.get_parent(state, :children)[child]
     get_child_pid(child_pid, children)
   end
 
