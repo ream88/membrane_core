@@ -4,7 +4,6 @@ defmodule Membrane.Core.Child.PadController do
   # Module handling linking and unlinking pads.
 
   use Bunch
-  use Membrane.Core.StateDispatcher, restrict: :child
 
   alias Bunch.Type
   alias Membrane.{Core, LinkError, Pad, ParentSpec}
@@ -19,6 +18,7 @@ defmodule Membrane.Core.Child.PadController do
   require Membrane.Core.Message
   require Membrane.Logger
   require Membrane.Pad
+  require StateDispatcher
 
   @type state_t :: Core.Bin.State.t() | Core.Element.State.t()
 
@@ -291,8 +291,8 @@ defmodule Membrane.Core.Child.PadController do
          %{mode: :pull, direction: :input} = data,
          props,
          _other_info,
-         Core.Element.State.state()
-       ) do
+         state
+        ) when StateDispatcher.element?(state) do
     %{ref: ref, pid: pid, other_ref: other_ref, demand_unit: demand_unit} = data
     input_buf = InputBuffer.init(demand_unit, pid, other_ref, inspect(ref), props.buffer)
     %{input_buf: input_buf, demand: 0}
@@ -307,7 +307,7 @@ defmodule Membrane.Core.Child.PadController do
   defp add_to_currently_linking(ref, state) do
     state
     |> StateDispatcher.get_child(:pads)
-    |> Map.update!(:dynamic_currently_linking, [ref | state])
+    |> Map.update!(:dynamic_currently_linking, &[ref | &1])
     |> then(&StateDispatcher.update_child(state, pads: &1))
   end
 
@@ -315,7 +315,7 @@ defmodule Membrane.Core.Child.PadController do
   defp clear_currently_linking(state) do
     state
     |> StateDispatcher.get_child(:pads)
-    |> Map.update!(:dynamic_currently_linking, [])
+    |> Map.put(:dynamic_currently_linking, [])
     |> then(&StateDispatcher.update_child(state, pads: &1))
   end
 

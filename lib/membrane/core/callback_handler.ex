@@ -6,13 +6,13 @@ defmodule Membrane.Core.CallbackHandler do
   # results.
 
   use Bunch
-  use Membrane.Core.StateDispatcher
 
   alias Bunch.Type
   alias Membrane.CallbackError
   alias Membrane.Core.StateDispatcher
 
   require Membrane.Logger
+  require StateDispatcher
 
   @type state_t :: Membrane.Core.Component.state_t()
 
@@ -108,7 +108,7 @@ defmodule Membrane.Core.CallbackHandler do
   @spec exec_callback(callback :: atom, args :: list, handler_params_t, state_t) ::
           callback_return_t | any
   defp exec_callback(callback, args, handler_params, state) do
-    module = state |> StateDispatcher.get(:module)
+    module = StateDispatcher.get_any(state, :module)
 
     args =
       case handler_params |> Map.fetch(:context) do
@@ -120,7 +120,7 @@ defmodule Membrane.Core.CallbackHandler do
 
     args =
       if handler_params.state do
-        args ++ [state |> StateDispatcher.get(:internal_state)]
+        args ++ [StateDispatcher.get_any(state, :internal_state)]
       else
         args
       end
@@ -138,7 +138,7 @@ defmodule Membrane.Core.CallbackHandler do
   defp handle_callback_result(cb_result, callback, handler_module, handler_params, state) do
     {result, new_internal_state} = cb_result
 
-    state = StateDispatcher.update(state, internal_state: new_internal_state)
+    state = StateDispatcher.update_any(state, internal_state: new_internal_state)
 
     with {{:ok, actions}, state} <- {result, state},
          {:ok, state} <-

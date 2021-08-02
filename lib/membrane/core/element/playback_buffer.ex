@@ -7,7 +7,6 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
 
   use Bunch
   use Bunch.Access
-  use Membrane.Core.StateDispatcher, restrict: :element
 
   alias Membrane.Core.Child.PadModel
 
@@ -25,9 +24,11 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
   require Membrane.Core.Child.PadModel
   require Membrane.Core.Message
   require Membrane.Logger
+  require State
+  require StateDispatcher
 
   @type t :: %__MODULE__{
-          q: Qex.t()
+    q: Qex.t()
         }
 
   @type message_t :: {Message, :demand | :buffer | :caps | :event, args :: list, opts :: list}

@@ -1,10 +1,11 @@
 defmodule Membrane.Core.Parent.ChildrenModel do
   @moduledoc false
-  use Membrane.Core.StateDispatcher, restrict: :parent
 
   alias Membrane.{Child, ChildEntry}
   alias Membrane.Core.Parent
   alias Membrane.Core.StateDispatcher
+
+  require StateDispatcher
 
   @type children_t :: %{Child.name_t() => ChildEntry.t()}
 

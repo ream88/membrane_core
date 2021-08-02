@@ -2,7 +2,6 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
   @moduledoc false
 
   use Bunch
-  use Membrane.Core.StateDispatcher, restrict: :parent
 
   alias Membrane.Core.{Bin, Child, Message, Parent, StateDispatcher, Telemetry}
   alias Membrane.Core.Child.PadModel
@@ -13,6 +12,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
 
   require Membrane.Core.Message
   require Membrane.Pad
+  require StateDispatcher
 
   @spec resolve_links([LinkParser.raw_link_t()], Parent.state_t()) ::
           [Parent.Link.t()]
@@ -161,12 +161,12 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
 
   # If the link involves the bin itself, make sure to call `handle_link` in the bin, to avoid
   # calling self() or calling a child that would call the bin, making a deadlock.
-  defp do_link(%Endpoint{child: {Membrane.Bin, :itself}} = from, to, Bin.State.state() = state) do
+  defp do_link(%Endpoint{child: {Membrane.Bin, :itself}} = from, to, state) when StateDispatcher.bin?(state) do
     {{:ok, _info}, state} = Child.PadController.handle_link(:output, from, to, nil, state)
     state
   end
 
-  defp do_link(from, %Endpoint{child: {Membrane.Bin, :itself}} = to, Bin.State.state() = state) do
+  defp do_link(from, %Endpoint{child: {Membrane.Bin, :itself}} = to, state) when StateDispatcher.bin?(state) do
     {{:ok, _info}, state} = Child.PadController.handle_link(:input, to, from, nil, state)
     state
   end

@@ -1,7 +1,6 @@
 defmodule Membrane.Core.Bin.ActionHandler do
   @moduledoc false
   use Membrane.Core.CallbackHandler
-  use Membrane.Core.StateDispatcher, restrict: :bin
 
   alias Membrane.Core.Bin.State
   alias Membrane.Core.{Message, Parent, StateDispatcher, TimerController}
@@ -9,6 +8,8 @@ defmodule Membrane.Core.Bin.ActionHandler do
 
   require Membrane.Logger
   require Message
+  require State
+  require StateDispatcher
 
   @impl CallbackHandler
   def handle_action({:forward, children_messages}, _cb, _params, state) do

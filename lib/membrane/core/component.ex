@@ -1,6 +1,6 @@
 defmodule Membrane.Core.Component do
   @moduledoc false
-  use Membrane.Core.StateDispatcher
+  require Membrane.Core.{Bin.State, Element.State, Pipeline.State, StateDispatcher}
 
   @type state_t ::
           Membrane.Core.Pipeline.State.t()

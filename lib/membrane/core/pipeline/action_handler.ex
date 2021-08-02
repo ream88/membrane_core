@@ -1,13 +1,13 @@
 defmodule Membrane.Core.Pipeline.ActionHandler do
   @moduledoc false
   use Membrane.Core.CallbackHandler
-  use Membrane.Core.StateDispatcher, restrict: :pipeline
 
   alias Membrane.CallbackError
   alias Membrane.Core.{Parent, StateDispatcher, TimerController}
   alias Membrane.ParentSpec
 
   require Membrane.Logger
+  require StateDispatcher
 
   @impl CallbackHandler
   # Deprecation

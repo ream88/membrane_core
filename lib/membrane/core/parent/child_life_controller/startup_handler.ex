@@ -1,7 +1,6 @@
 defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
   @moduledoc false
   use Bunch
-  use Membrane.Core.StateDispatcher, restrict: :parent
 
   alias Membrane.{CallbackError, ChildEntry, Clock, Core, ParentError, Sync}
   alias Membrane.Core.{CallbackHandler, Component, Message, Parent, StateDispatcher}
@@ -10,6 +9,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
   require Membrane.Core.Component
   require Membrane.Core.Message
   require Membrane.Logger
+  require StateDispatcher
 
   @spec check_if_children_names_unique([ChildEntryParser.raw_child_entry_t()], Parent.state_t()) ::
           :ok | no_return

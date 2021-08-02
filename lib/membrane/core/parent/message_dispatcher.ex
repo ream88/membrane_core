@@ -1,6 +1,5 @@
 defmodule Membrane.Core.Parent.MessageDispatcher do
   @moduledoc false
-  use Membrane.Core.StateDispatcher, restrict: :parent
 
   import Membrane.Helper.GenServer
 
@@ -9,6 +8,7 @@ defmodule Membrane.Core.Parent.MessageDispatcher do
   alias Membrane.Core.Parent.{ChildLifeController, LifecycleController}
 
   require Message
+  require StateDispatcher
 
   @spec handle_message(Message.t(), Parent.state_t()) ::
           Membrane.Helper.GenServer.genserver_return_t()

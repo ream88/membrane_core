@@ -17,7 +17,6 @@ defmodule Membrane.Core.Element do
 
   use Bunch
   use GenServer
-  use Membrane.Core.StateDispatcher, restrict: :element
 
   import Membrane.Helper.GenServer
 
@@ -29,6 +28,7 @@ defmodule Membrane.Core.Element do
 
   require Membrane.Core.Message
   require Membrane.Logger
+  require State
 
   @type options_t :: %{
           module: module,

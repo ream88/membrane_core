@@ -4,7 +4,6 @@ defmodule Membrane.Core.Element.BufferController do
   # Module handling buffers incoming through input pads.
 
   use Bunch
-  use Membrane.Core.StateDispatcher, restrict: :element
 
   alias Membrane.{Buffer, Pad}
   alias Membrane.Core.{CallbackHandler, InputBuffer}
@@ -13,6 +12,8 @@ defmodule Membrane.Core.Element.BufferController do
   alias Membrane.Element.CallbackContext
 
   require Membrane.Core.Child.PadModel
+  require Membrane.Core.StateDispatcher
+  require State
 
   @doc """
   Handles incoming buffer: either stores it in InputBuffer, or executes element's

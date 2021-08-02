@@ -4,11 +4,12 @@ defmodule Membrane.Core.Child.PadModel do
   # Utility functions for veryfying and manipulating pads and their data.
 
   use Bunch
-  use Membrane.Core.StateDispatcher, restrict: :child
 
   alias Bunch.Type
   alias Membrane.Core.{Child, StateDispatcher}
   alias Membrane.Pad
+
+  require StateDispatcher
 
   @type pads_data_t :: %{Pad.ref_t() => Pad.Data.t()}
 

@@ -9,13 +9,13 @@ defmodule Membrane.Core.PlaybackHandler do
   # `handle_prepared_to_playing` and `handle_prepared_to_stopped` callbacks.
 
   use Bunch
-  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.{Component, Message, StateDispatcher}
   alias Membrane.PlaybackState
 
   require Message
   require PlaybackState
+  require StateDispatcher
 
   @type handler_return_t ::
           {:ok | {:error, any()}, Component.state_t()} | {:stop, any(), Component.state_t()}
@@ -101,9 +101,9 @@ defmodule Membrane.Core.PlaybackHandler do
       end
 
     if playback.pending_state == nil and playback.state != playback.target_state do
-      do_change_playback_state(handler, StateDispatcher.update(state, playback: playback))
+      do_change_playback_state(handler, StateDispatcher.update_any(state, playback: playback))
     else
-      {:ok, StateDispatcher.update(state, playback: playback)}
+      {:ok, StateDispatcher.update_any(state, playback: playback)}
     end
   end
 
@@ -115,7 +115,7 @@ defmodule Membrane.Core.PlaybackHandler do
          {:ok, state} <-
            handler.handle_playback_state(playback.state, next_playback_state, state) do
       playback = %{playback | pending_state: next_playback_state}
-      state = StateDispatcher.update(state, playback: playback)
+      state = StateDispatcher.update_any(state, playback: playback)
 
       if playback.async_state_change do
         {:ok, state}
@@ -129,7 +129,7 @@ defmodule Membrane.Core.PlaybackHandler do
   def suspend_playback_change(state) do
     playback = %{get_playback(state) | async_state_change: true}
 
-    {:ok, StateDispatcher.update(state, playback: playback)}
+    {:ok, StateDispatcher.update_any(state, playback: playback)}
   end
 
   @spec suspended?(Component.state_t()) :: boolean
@@ -146,7 +146,7 @@ defmodule Membrane.Core.PlaybackHandler do
         pending_state: nil
     }
 
-    state = StateDispatcher.update(state, playback: new_playback)
+    state = StateDispatcher.update_any(state, playback: new_playback)
 
     handler_res =
       handler.handle_playback_state_changed(
@@ -198,5 +198,5 @@ defmodule Membrane.Core.PlaybackHandler do
     end
   end
 
-  defp get_playback(state), do: StateDispatcher.get(state, :playback)
+  defp get_playback(state), do: StateDispatcher.get_any(state, :playback)
 end

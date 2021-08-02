@@ -1,7 +1,6 @@
 defmodule Membrane.Core.Child.LifecycleController do
   @moduledoc false
   use Bunch
-  use Membrane.Core.StateDispatcher, restrict: :child
 
   alias Membrane.Clock
   alias Membrane.Core.{Child, Message, StateDispatcher}
@@ -9,6 +8,7 @@ defmodule Membrane.Core.Child.LifecycleController do
 
   require Message
   require PadModel
+  require StateDispatcher
 
   @spec handle_controlling_pid(pid, Child.state_t()) :: {:ok, Child.state_t()}
   def handle_controlling_pid(pid, state),

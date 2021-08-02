@@ -6,9 +6,9 @@ defmodule Membrane.Core.Pipeline.CallbackContext do
     clock: Membrane.Clock.t(),
     children: %{Membrane.Child.name_t() => Membrane.ChildEntry.t()}
 
-  use Membrane.Core.StateDispatcher, restrict: :pipeline
-
   alias Membrane.Core.StateDispatcher
+
+  require StateDispatcher
 
   @impl true
   def extract_default_fields(state, args) do

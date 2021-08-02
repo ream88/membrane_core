@@ -1,7 +1,6 @@
 defmodule Membrane.Core.Parent.ChildLifeController do
   @moduledoc false
   use Bunch
-  use Membrane.Core.StateDispatcher, restrict: :parent
 
   alias __MODULE__.{CrashGroupHandler, LinkHandler, StartupHandler}
   alias Membrane.ParentSpec
@@ -20,6 +19,7 @@ defmodule Membrane.Core.Parent.ChildLifeController do
   require Membrane.Bin
   require Membrane.Element
   require Membrane.Logger
+  require StateDispatcher
 
   @spec handle_spec(ParentSpec.t(), Parent.state_t()) ::
           {{:ok, [Membrane.Child.name_t()]}, Parent.state_t()} | no_return
@@ -159,7 +159,7 @@ defmodule Membrane.Core.Parent.ChildLifeController do
       |> StateDispatcher.get_parent(:children)
       |> Map.delete(child_name)
       |> then(&StateDispatcher.update_parent(state, children: &1))
-      |> then(&remove_child_links(child_name, &1))
+      |> remove_child_links(child_name)
       |> LifecycleController.maybe_finish_playback_transition()
     else
       {:error, :not_child} ->
@@ -246,7 +246,7 @@ defmodule Membrane.Core.Parent.ChildLifeController do
     {:stop, {:shutdown, :child_crash}, state}
   end
 
-  defp remove_child_links(child_name, state) do
+  defp remove_child_links(state, child_name) do
     state
     |> StateDispatcher.get_parent(:links)
     |> Enum.reject(fn %Link{from: from, to: to} ->

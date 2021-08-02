@@ -4,7 +4,6 @@ defmodule Membrane.Core.Element.DemandController do
   # Module handling demands incoming through output pads.
 
   use Bunch
-  use Membrane.Core.StateDispatcher, restrict: :element
 
   alias Membrane.Core.{CallbackHandler, StateDispatcher}
   alias Membrane.Core.Child.PadModel
@@ -14,6 +13,7 @@ defmodule Membrane.Core.Element.DemandController do
 
   require Membrane.Core.Child.PadModel
   require Membrane.Logger
+  require StateDispatcher
 
   @doc """
   Handles demand coming on a output pad. Updates demand value and executes `handle_demand` callback.

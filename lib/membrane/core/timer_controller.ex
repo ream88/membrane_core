@@ -1,13 +1,13 @@
 defmodule Membrane.Core.TimerController do
   @moduledoc false
   use Bunch
-  use Membrane.Core.StateDispatcher
 
   alias Membrane.Clock
   alias Membrane.Core.{CallbackHandler, Component, StateDispatcher, Timer}
 
   require Membrane.Core.Component
   require Membrane.Element.CallbackContext.Tick
+  require StateDispatcher
 
   @spec start_timer(Timer.id_t(), Timer.interval_t(), Clock.t(), Component.state_t()) ::
           {:ok, Component.state_t()}
@@ -22,7 +22,7 @@ defmodule Membrane.Core.TimerController do
       timer = Timer.start(id, interval, clock)
       new_sync = put_in(synchronization, [:timers, id], timer)
 
-      StateDispatcher.update(state, synchronization: new_sync)
+      StateDispatcher.update_any(state, synchronization: new_sync)
       ~> {:ok, &1}
     end
   end
@@ -37,7 +37,7 @@ defmodule Membrane.Core.TimerController do
       timer = Timer.set_interval(timer, interval)
       new_sync = put_in(synchronization, [:timers, id], timer)
 
-      StateDispatcher.update(state, synchronization: new_sync)
+      StateDispatcher.update_any(state, synchronization: new_sync)
       ~> {:ok, &1}
     else
       :error -> {{:error, {:unknown_timer, id}}, state}
@@ -49,7 +49,7 @@ defmodule Membrane.Core.TimerController do
           | {{:error, {:unknown_timer, id: Timer.id_t()}}, Component.state_t()}
   def stop_timer(id, state) do
     {timer, new_sync} = pop_in(get_sync(state), [:timers, id])
-    state = StateDispatcher.update(state, synchronization: new_sync)
+    state = StateDispatcher.update_any(state, synchronization: new_sync)
 
     if timer |> is_nil do
       {{:error, {:unknown_timer, id}}, state}
@@ -81,7 +81,7 @@ defmodule Membrane.Core.TimerController do
           present?: true <- Map.has_key?(synchronization.timers, timer_id) do
       new_sync = update_in(synchronization, [:timers, timer_id], &Timer.tick/1)
 
-      StateDispatcher.update(state, synchronization: new_sync)
+      StateDispatcher.update_any(state, synchronization: new_sync)
       ~> {:ok, &1}
     else
       present?: false -> {:ok, state}
@@ -102,9 +102,9 @@ defmodule Membrane.Core.TimerController do
         end)
       )
 
-    StateDispatcher.update(state, synchronization: new_sync)
+    StateDispatcher.update_any(state, synchronization: new_sync)
     ~> {:ok, &1}
   end
 
-  defp get_sync(state), do: StateDispatcher.get(state, :synchronization)
+  defp get_sync(state), do: StateDispatcher.get_any(state, :synchronization)
 end

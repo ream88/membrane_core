@@ -3,86 +3,95 @@ defmodule Membrane.Core.StateDispatcher do
 
   @type group_t :: :parent | :child | :any
 
-  @type state_t ::
-          Membrane.Core.Bin.State.t()
-          | Membrane.Core.Element.State.t()
-          | Membrane.Core.Pipeline.State.t()
+  @type component_t :: :bin | :element | :pipeline
 
   @type kind_t ::
           Membrane.Core.Bin.State
           | Membrane.Core.Element.State
           | Membrane.Core.Pipeline.State
 
-  @type component_t :: Bin | State | Element
+  @type state_t ::
+          Membrane.Core.Bin.State.t()
+          | Membrane.Core.Element.State.t()
+          | Membrane.Core.Pipeline.State.t()
+
+  @components [:bin, :element, :pipeline]
+  @groups [:parent, :child, :any]
+
+  @membership %{
+    parent: [:bin, :pipeline],
+    child: [:bin, :element],
+    any: @components
+  }
 
   require Record
 
-  defmacro __using__(opts) do
-    requires =
-      opts
-      |> Keyword.get(:restrict, :any)
-      |> restrict()
-      |> Enum.map(fn component ->
-        quote do
-          require unquote(kind_of(component))
-        end
-      end)
+  @spec restrict(group_t() | component_t()) :: [component_t()]
+  def restrict(spec) when spec in @groups, do: @membership[spec]
+  def restrict(spec) when spec in @components, do: [spec]
 
-    quote do
-      (unquote_splicing(requires))
-    end
-  end
-
-  @spec restrict(group_t() | [component_t()]) :: [component_t()]
-  def restrict(group) do
-    case group do
-      :bin -> [Bin]
-      :element -> [Element]
-      :pipeline -> [Pipeline]
-      :parent -> [Bin, Pipeline]
-      :child -> [Bin, Element]
-      :any -> [Bin, Element, Pipeline]
-    end
-  end
-
-  @spec kind_of(state_t() | component_t()) :: kind_t()
   def kind_of(state) when Record.is_record(state), do: elem(state, 0)
 
   def kind_of(component) when is_atom(component),
-    do: Module.concat([Membrane.Core, component, State])
+    do:
+      Module.concat([
+        Membrane.Core,
+        component |> Atom.to_string() |> String.capitalize(),
+        State
+      ])
 
   defguard bin?(state) when Record.is_record(state, Membrane.Core.Bin.State)
   defguard element?(state) when Record.is_record(state, Membrane.Core.Element.State)
   defguard pipeline?(state) when Record.is_record(state, Membrane.Core.Pipeline.State)
 
-  # TODO: automagically generate getters/setters
+  # FIXME: inconsistent State initialisation
+  defmacro element(map) when is_map(map) do
+    kind = kind_of(:element)
+    quote do
+      require unquote(kind)
+      apply(unquote(kind), :new, unquote(map))
+    end
+  end
 
-  defmacro get(state, key), do: group_op(:any, [state, key])
-  defmacro update(state, kw), do: group_op(:any, [state | kw])
+  @components
+  |> Enum.map(fn component ->
+    defmacro unquote(component)(kw) do
+      kind = kind_of(unquote(component))
+      quote do
+        require unquote(kind)
+        apply(unquote(kind), :state, unquote(kw))
+      end
+    end
 
-  defmacro get_child(state, key), do: group_op(:child, [state, key])
-  defmacro update_child(state, kw), do: group_op(:child, [state | kw])
+    defmacro unquote(component)(state, kw) do
+      kind = kind_of(unquote(component))
+      quote do
+        require unquote(kind)
+        apply(unquote(kind), :state, [unquote(state) | unquote(kw)])
+      end
+    end
+  end)
 
-  defmacro get_parent(state, key), do: group_op(:parent, [state, key])
-  defmacro update_parent(state, kw), do: group_op(:parent, [state | kw])
+  (@components ++ @groups)
+  |> Enum.map(fn spec ->
+    defmacro unquote(:"get_#{spec}")(state, key), do: spec_op(unquote(spec), [state, key])
+    defmacro unquote(:"update_#{spec}")(state, kw), do: spec_op(unquote(spec), [state | kw])
+  end)
 
-  defmacro get_bin(state, key), do: kind_op([state, key])
-  defmacro update_bin(state, kw), do: kind_op([state | kw])
+  defp spec_op(spec, args) when spec in @components do
+    quote do
+      apply(unquote(__MODULE__), unquote(spec), unquote(args))
+    end
+  end
 
-  defmacro get_element(state, key), do: kind_op([state, key])
-  defmacro update_element(state, kw), do: kind_op([state | kw])
-
-  defmacro get_pipeline(state, key), do: kind_op([state, key])
-  defmacro update_pipeline(state, kw), do: kind_op([state | kw])
-
-  defp group_op(group, [state | _] = args) do
+  defp spec_op(spec, [state | _] = args) when spec in @groups do
     clauses =
-      group
+      spec
       |> restrict()
-      |> Enum.map(&kind_of/1)
-      |> Enum.flat_map(fn kind ->
+      |> Enum.flat_map(fn component ->
         quote do
-          unquote(kind) -> apply(unquote(kind), :state, unquote(args))
+          unquote(kind_of(component)) ->
+            apply(unquote(__MODULE__), unquote(component), unquote(args))
         end
       end)
 
@@ -90,12 +99,6 @@ defmodule Membrane.Core.StateDispatcher do
       case unquote(__MODULE__).kind_of(unquote(state)) do
         unquote(clauses)
       end
-    end
-  end
-
-  defp kind_op([state | _] = args) do
-    quote do
-      apply(unquote(kind_of(state)), :state, unquote(args))
     end
   end
 end

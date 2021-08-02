@@ -2,7 +2,6 @@ defmodule Membrane.Core.Parent.LifecycleController do
   @moduledoc false
   use Bunch
   use Membrane.Core.PlaybackHandler
-  use Membrane.Core.StateDispatcher, restrict: :parent
 
   alias Bunch.Type
   alias Membrane.{Child, Core, Notification, Pad, Sync}
@@ -23,6 +22,7 @@ defmodule Membrane.Core.Parent.LifecycleController do
   require Membrane.Core.Message
   require Membrane.Logger
   require Membrane.PlaybackState
+  require StateDispatcher
 
   @impl PlaybackHandler
   def handle_playback_state(old, new, state) do
@@ -63,9 +63,7 @@ defmodule Membrane.Core.Parent.LifecycleController do
         {:ok, state}
       end
 
-    is_bin = StateDispatcher.kind_of(state) == :bin
-
-    if is_bin and new == :stopped do
+    if StateDispatcher.bin?(state) and new == :stopped do
       Core.Child.LifecycleController.unlink(state)
     end
 
@@ -166,8 +164,11 @@ defmodule Membrane.Core.Parent.LifecycleController do
     end
   end
 
-  defp get_callback_action_handler(Core.Pipeline.State), do: Core.Pipeline.ActionHandler
-  defp get_callback_action_handler(Core.Bin.State), do: Core.Bin.ActionHandler
+  defp get_callback_action_handler(state) when StateDispatcher.pipeline?(state),
+    do: Core.Pipeline.ActionHandler
+
+  defp get_callback_action_handler(state) when StateDispatcher.bin?(state),
+    do: Core.Bin.ActionHandler
 
   defp to_parent_sm_callback(:handle_start_of_stream), do: :handle_element_start_of_stream
   defp to_parent_sm_callback(:handle_end_of_stream), do: :handle_element_end_of_stream

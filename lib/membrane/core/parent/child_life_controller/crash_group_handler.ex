@@ -1,11 +1,12 @@
 defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
   @moduledoc false
   # A module responsible for managing crash groups inside the state of pipeline.
-  use Membrane.Core.StateDispatcher, restrict: :pipeline
 
   alias Membrane.ParentSpec
   alias Membrane.Core.{Parent, Pipeline, StateDispatcher}
   alias Membrane.Core.Parent.CrashGroup
+
+  require StateDispatcher
 
   @spec add_crash_group(
           ParentSpec.crash_group_spec_t(),

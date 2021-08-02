@@ -8,9 +8,9 @@ defmodule Membrane.Core.Element.CallbackContext do
     parent_clock: Membrane.Clock.t() | nil,
     name: Membrane.Element.name_t()
 
-  use Membrane.Core.StateDispatcher, restrict: :element
-
   alias Membrane.Core.StateDispatcher
+
+  require StateDispatcher
 
   @impl true
   def extract_default_fields(state, args) do
