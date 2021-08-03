@@ -51,7 +51,7 @@ defmodule Membrane.Core.StateDispatcher do
 
     quote do
       require unquote(module)
-      apply(unquote(module), :new, unquote(map))
+      unquote(module).new(unquote(map))
     end
   end
 
@@ -62,7 +62,7 @@ defmodule Membrane.Core.StateDispatcher do
 
       quote do
         require unquote(module)
-        apply(unquote(module), :state, unquote(kw))
+        unquote(module).state(unquote(kw))
       end
     end
 
@@ -71,7 +71,7 @@ defmodule Membrane.Core.StateDispatcher do
 
       quote do
         require unquote(module)
-        apply(unquote(module), :state, [unquote(state) | unquote(kw)])
+        unquote(module).state(unquote(state), unquote(kw))
       end
     end
   end)

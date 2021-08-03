@@ -6,8 +6,10 @@ defmodule Membrane.Core.Pipeline do
   alias Membrane.Clock
   alias Membrane.Core.{CallbackHandler, StateDispatcher}
   alias Membrane.Core.Parent.MessageDispatcher
+  alias Membrane.Core.Pipeline.State
 
   require Membrane.Logger
+  require State
   require StateDispatcher
 
   @impl GenServer
