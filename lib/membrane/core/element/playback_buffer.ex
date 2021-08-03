@@ -28,7 +28,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
   require StateDispatcher
 
   @type t :: %__MODULE__{
-    q: Qex.t()
+          q: Qex.t()
         }
 
   @type message_t :: {Message, :demand | :buffer | :caps | :event, args :: list, opts :: list}

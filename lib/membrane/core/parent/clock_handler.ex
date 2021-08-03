@@ -17,7 +17,7 @@ defmodule Membrane.Core.Parent.ClockHandler do
     synchronization = StateDispatcher.get_parent(state, :synchronization)
 
     components =
-      case StateDispatcher.kind_of(state) do
+      case StateDispatcher.module_of(state) do
         Core.Bin.State -> [%{name: Membrane.Parent, clock: synchronization.parent_clock}]
         Core.Pipeline.State -> []
       end

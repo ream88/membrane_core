@@ -5,7 +5,7 @@ defmodule Membrane.Core.StateDispatcher do
 
   @type component_t :: :bin | :element | :pipeline
 
-  @type kind_t ::
+  @type module_t ::
           Membrane.Core.Bin.State
           | Membrane.Core.Element.State
           | Membrane.Core.Pipeline.State
@@ -30,13 +30,14 @@ defmodule Membrane.Core.StateDispatcher do
   def restrict(spec) when spec in @groups, do: @membership[spec]
   def restrict(spec) when spec in @components, do: [spec]
 
-  def kind_of(state) when Record.is_record(state), do: elem(state, 0)
+  @spec module_of(state_t() | component_t()) :: module_t()
+  def module_of(state) when Record.is_record(state), do: elem(state, 0)
 
-  def kind_of(component) when is_atom(component),
+  def module_of(component) when is_atom(component),
     do:
       Module.concat([
         Membrane.Core,
-        component |> Atom.to_string() |> String.capitalize(),
+        component |> Atom.to_string() |> String.capitalize() |> String.to_atom(),
         State
       ])
 
@@ -46,28 +47,31 @@ defmodule Membrane.Core.StateDispatcher do
 
   # FIXME: inconsistent State initialisation
   defmacro element(map) when is_map(map) do
-    kind = kind_of(:element)
+    module = module_of(:element)
+
     quote do
-      require unquote(kind)
-      apply(unquote(kind), :new, unquote(map))
+      require unquote(module)
+      apply(unquote(module), :new, unquote(map))
     end
   end
 
   @components
   |> Enum.map(fn component ->
     defmacro unquote(component)(kw) do
-      kind = kind_of(unquote(component))
+      module = module_of(unquote(component))
+
       quote do
-        require unquote(kind)
-        apply(unquote(kind), :state, unquote(kw))
+        require unquote(module)
+        apply(unquote(module), :state, unquote(kw))
       end
     end
 
     defmacro unquote(component)(state, kw) do
-      kind = kind_of(unquote(component))
+      module = module_of(unquote(component))
+
       quote do
-        require unquote(kind)
-        apply(unquote(kind), :state, [unquote(state) | unquote(kw)])
+        require unquote(module)
+        apply(unquote(module), :state, [unquote(state) | unquote(kw)])
       end
     end
   end)
@@ -90,13 +94,13 @@ defmodule Membrane.Core.StateDispatcher do
       |> restrict()
       |> Enum.flat_map(fn component ->
         quote do
-          unquote(kind_of(component)) ->
+          unquote(module_of(component)) ->
             apply(unquote(__MODULE__), unquote(component), unquote(args))
         end
       end)
 
     quote do
-      case unquote(__MODULE__).kind_of(unquote(state)) do
+      case unquote(__MODULE__).module_of(unquote(state)) do
         unquote(clauses)
       end
     end

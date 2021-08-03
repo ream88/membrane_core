@@ -103,7 +103,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
     context = Component.callback_context_generator(:parent, SpecStarted, state)
 
     action_handler =
-      case StateDispatcher.kind_of(state) do
+      case StateDispatcher.module_of(state) do
         Core.Bin.State -> Core.Bin.ActionHandler
         Core.Pipeline.State -> Core.Pipeline.ActionHandler
       end

@@ -292,7 +292,8 @@ defmodule Membrane.Core.Child.PadController do
          props,
          _other_info,
          state
-        ) when StateDispatcher.element?(state) do
+       )
+       when StateDispatcher.element?(state) do
     %{ref: ref, pid: pid, other_ref: other_ref, demand_unit: demand_unit} = data
     input_buf = InputBuffer.init(demand_unit, pid, other_ref, inspect(ref), props.buffer)
     %{input_buf: input_buf, demand: 0}
