@@ -1,5 +1,6 @@
 defmodule Membrane.Core.Child.PadControllerTest do
   use ExUnit.Case, async: true
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.Child.{PadModel, PadSpecHandler}
   alias Membrane.Core.{Message, StateDispatcher}
@@ -9,7 +10,6 @@ defmodule Membrane.Core.Child.PadControllerTest do
 
   require Message
   require Pad
-  use StateDispatcher
 
   @module Membrane.Core.Child.PadController
 

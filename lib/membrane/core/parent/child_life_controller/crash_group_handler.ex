@@ -1,12 +1,11 @@
 defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
   @moduledoc false
   # A module responsible for managing crash groups inside the state of pipeline.
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.ParentSpec
   alias Membrane.Core.{Parent, Pipeline, StateDispatcher}
   alias Membrane.Core.Parent.CrashGroup
-
-  use StateDispatcher
 
   @spec add_crash_group(
           ParentSpec.crash_group_spec_t(),
@@ -69,7 +68,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
   def remove_member_of_crash_group(state, group_name, pid) do
     state
     |> StateDispatcher.get_pipeline(:crash_groups)
-    |> update_in([group_name, :alive_members_pids], &List.delete(&1, pid))
+    |> Bunch.Access.update_in([group_name, :alive_members_pids], &List.delete(&1, pid))
     |> then(&StateDispatcher.update_pipeline(state, crash_groups: &1))
   end
 
@@ -94,7 +93,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
   def set_triggered(state, group_name, value \\ true) do
     state
     |> StateDispatcher.get_pipeline(:crash_groups)
-    |> put_in([group_name, :triggered?], value)
+    |> Bunch.Access.put_in([group_name, :triggered?], value)
     |> then(&StateDispatcher.update_pipeline(state, crash_groups: &1))
   end
 end

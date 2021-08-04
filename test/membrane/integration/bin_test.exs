@@ -1,5 +1,6 @@
 defmodule Membrane.Core.BinTest do
   use ExUnit.Case, async: true
+  use Membrane.Core.StateDispatcher
 
   import Membrane.Testing.Assertions
 
@@ -8,9 +9,6 @@ defmodule Membrane.Core.BinTest do
   alias Membrane.Support.Bin.TestBins
   alias Membrane.Support.Bin.TestBins.{TestDynamicPadFilter, TestFilter}
   alias Membrane.Testing
-
-  require State
-  use StateDispatcher
 
   describe "Starting and transmitting buffers" do
     test "in simple, flat use case" do

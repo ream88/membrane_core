@@ -1,6 +1,6 @@
 defmodule Membrane.Core.Component do
   @moduledoc false
-  require Membrane.Core.{Bin.State, Element.State, Pipeline.State, StateDispatcher}
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.StateDispatcher
 
@@ -41,7 +41,7 @@ defmodule Membrane.Core.Component do
     quote do
       unquote_splicing(requires)
 
-      case Membrane.Core.StateDispatcher.module_of(unquote(state)) do
+      case StateDispatcher.module_of(unquote(state)) do
         unquote(clauses)
       end
     end

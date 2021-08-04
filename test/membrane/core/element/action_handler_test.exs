@@ -1,5 +1,6 @@
 defmodule Membrane.Core.Element.ActionHandlerTest do
   use ExUnit.Case, async: true
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.{ActionError, Buffer}
   alias Membrane.Core.{Message, Playback, StateDispatcher}
@@ -9,7 +10,6 @@ defmodule Membrane.Core.Element.ActionHandlerTest do
   alias Membrane.Support.Element.{TrivialFilter, TrivialSource}
 
   require Message
-  use StateDispatcher
 
   @module Membrane.Core.Element.ActionHandler
 

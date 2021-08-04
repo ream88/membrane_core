@@ -1,5 +1,6 @@
 defmodule Membrane.Core.Parent.MessageDispatcher do
   @moduledoc false
+  use Membrane.Core.StateDispatcher
 
   import Membrane.Helper.GenServer
 
@@ -8,7 +9,6 @@ defmodule Membrane.Core.Parent.MessageDispatcher do
   alias Membrane.Core.Parent.{ChildLifeController, LifecycleController}
 
   require Message
-  use StateDispatcher
 
   @spec handle_message(Message.t(), Parent.state_t()) ::
           Membrane.Helper.GenServer.genserver_return_t()
@@ -68,7 +68,9 @@ defmodule Membrane.Core.Parent.MessageDispatcher do
 
   defp inform_parent(state, msg, msg_params) do
     if not StateDispatcher.pipeline?(state) do
-      if watcher = StateDispatcher.get_child(state, :watcher) do
+      watcher = StateDispatcher.get_child(state, :watcher)
+
+      if watcher do
         name = StateDispatcher.get_child(state, :name)
         Message.send(watcher, msg, [name | msg_params])
       end

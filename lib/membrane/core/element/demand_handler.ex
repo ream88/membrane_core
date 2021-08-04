@@ -4,6 +4,7 @@ defmodule Membrane.Core.Element.DemandHandler do
   # Module handling demands requested on output pads.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.{InputBuffer, StateDispatcher}
   alias Membrane.Core.Child.PadModel
@@ -21,8 +22,6 @@ defmodule Membrane.Core.Element.DemandHandler do
   require Membrane.Core.Child.PadModel
   require Membrane.Core.Message
   require Membrane.Logger
-  require State
-  use StateDispatcher
 
   @doc """
   Updates demand on the given input pad that should be supplied by future calls
@@ -111,11 +110,13 @@ defmodule Membrane.Core.Element.DemandHandler do
   """
   @spec handle_redemand(Pad.ref_t(), State.t()) :: {:ok, State.t()}
   def handle_redemand(pad_ref, State.state(supplying_demand?: true) = state) do
-    state
-    |> StateDispatcher.get_element(:delayed_demands)
-    |> MapSet.put({pad_ref, :redemand})
-    |> then(&StateDispatcher.update_element(state, delayed_demands: &1))
-    ~> {:ok, &1}
+    state =
+      state
+      |> StateDispatcher.get_element(:delayed_demands)
+      |> MapSet.put({pad_ref, :redemand})
+      |> then(&StateDispatcher.update_element(state, delayed_demands: &1))
+
+    {:ok, state}
   end
 
   def handle_redemand(pad_ref, state) do
@@ -140,11 +141,13 @@ defmodule Membrane.Core.Element.DemandHandler do
           State.t()
         ) :: {:ok, State.t()} | {{:error, any()}, State.t()}
   def supply_demand(pad_ref, State.state(supplying_demand?: true) = state) do
-    state
-    |> StateDispatcher.get_element(:delayed_demands)
-    |> MapSet.put({pad_ref, :supply})
-    |> then(&StateDispatcher.update_element(state, delayed_demands: &1))
-    ~> {:ok, &1}
+    state =
+      state
+      |> StateDispatcher.get_element(:delayed_demands)
+      |> MapSet.put({pad_ref, :supply})
+      |> then(&StateDispatcher.update_element(state, delayed_demands: &1))
+
+    {:ok, state}
   end
 
   def supply_demand(pad_ref, state) do

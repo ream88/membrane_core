@@ -9,13 +9,13 @@ defmodule Membrane.Core.PlaybackHandler do
   # `handle_prepared_to_playing` and `handle_prepared_to_stopped` callbacks.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.{Component, Message, StateDispatcher}
   alias Membrane.PlaybackState
 
   require Message
   require PlaybackState
-  use StateDispatcher
 
   @type handler_return_t ::
           {:ok | {:error, any()}, Component.state_t()} | {:stop, any(), Component.state_t()}
@@ -92,7 +92,7 @@ defmodule Membrane.Core.PlaybackHandler do
   @spec change_playback_state(PlaybackState.t(), module(), Component.state_t()) ::
           handler_return_t()
   def change_playback_state(new_playback_state, handler, state) do
-    playback = get_playback(state)
+    playback = StateDispatcher.get_any(state, :playback)
 
     playback =
       case playback do
@@ -108,7 +108,7 @@ defmodule Membrane.Core.PlaybackHandler do
   end
 
   defp do_change_playback_state(handler, state) do
-    playback = get_playback(state)
+    playback = StateDispatcher.get_any(state, :playback)
 
     with {:ok, next_playback_state} <-
            next_state(playback.state, playback.target_state),
@@ -127,17 +127,18 @@ defmodule Membrane.Core.PlaybackHandler do
 
   @spec suspend_playback_change(pb) :: {:ok, pb} when pb: Component.state_t()
   def suspend_playback_change(state) do
-    playback = %{get_playback(state) | async_state_change: true}
+    playback = %{StateDispatcher.get_any(state, :playback) | async_state_change: true}
 
     {:ok, StateDispatcher.update_any(state, playback: playback)}
   end
 
   @spec suspended?(Component.state_t()) :: boolean
-  def suspended?(state), do: state |> get_playback() |> Map.get(:async_state_change)
+  def suspended?(state),
+    do: state |> StateDispatcher.get_any(:playback) |> Map.get(:async_state_change)
 
   @spec continue_playback_change(module, Component.state_t()) :: handler_return_t()
   def continue_playback_change(handler, state) do
-    old_playback = get_playback(state)
+    old_playback = StateDispatcher.get_any(state, :playback)
 
     new_playback = %{
       old_playback
@@ -163,7 +164,11 @@ defmodule Membrane.Core.PlaybackHandler do
       {:ok, state} ->
         maybe_notify_controller(handler, state)
 
-        change_playback_state(new_playback.target_state, handler, state)
+        change_playback_state(
+          StateDispatcher.get_any(state, :playback).target_state,
+          handler,
+          state
+        )
     end
   end
 
@@ -197,6 +202,4 @@ defmodule Membrane.Core.PlaybackHandler do
       diff: _ -> {:error, :target_and_current_states_equal}
     end
   end
-
-  defp get_playback(state), do: StateDispatcher.get_any(state, :playback)
 end

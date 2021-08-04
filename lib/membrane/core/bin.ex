@@ -2,6 +2,7 @@ defmodule Membrane.Core.Bin do
   @moduledoc false
   use Bunch
   use GenServer
+  use Membrane.Core.StateDispatcher
 
   import Membrane.Helper.GenServer
 
@@ -13,8 +14,6 @@ defmodule Membrane.Core.Bin do
 
   require Membrane.Core.Message
   require Membrane.Logger
-  use StateDispatcher
-  require State
 
   @type options_t :: %{
           name: atom,
@@ -175,8 +174,7 @@ defmodule Membrane.Core.Bin do
 
   @impl GenServer
   def terminate(reason, state) do
-    module = StateDispatcher.get_bin(state, :module)
-    internal_state = StateDispatcher.get_bin(state, :internal_state)
+    State.state(module: module, internal_state: internal_state) = state
 
     :ok = module.handle_shutdown(reason, internal_state)
   end

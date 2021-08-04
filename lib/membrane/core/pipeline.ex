@@ -1,6 +1,7 @@
 defmodule Membrane.Core.Pipeline do
   @moduledoc false
   use GenServer
+  use Membrane.Core.StateDispatcher
 
   alias __MODULE__.ActionHandler
   alias Membrane.Clock
@@ -9,8 +10,6 @@ defmodule Membrane.Core.Pipeline do
   alias Membrane.Core.Pipeline.State
 
   require Membrane.Logger
-  require State
-  use StateDispatcher
 
   @impl GenServer
   def init({module, pipeline_options}) do
@@ -48,8 +47,7 @@ defmodule Membrane.Core.Pipeline do
 
   @impl GenServer
   def terminate(reason, state) do
-    module = StateDispatcher.get_pipeline(state, :module)
-    internal_state = StateDispatcher.get_pipeline(state, :internal_state)
+    State.state(module: module, internal_state: internal_state) = state
 
     :ok = module.handle_shutdown(reason, internal_state)
   end

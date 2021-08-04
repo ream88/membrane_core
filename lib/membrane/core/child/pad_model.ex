@@ -4,12 +4,11 @@ defmodule Membrane.Core.Child.PadModel do
   # Utility functions for veryfying and manipulating pads and their data.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Bunch.Type
   alias Membrane.Core.{Child, StateDispatcher}
   alias Membrane.Pad
-
-  use StateDispatcher
 
   @type pads_data_t :: %{Pad.ref_t() => Pad.Data.t()}
 
@@ -36,7 +35,7 @@ defmodule Membrane.Core.Child.PadModel do
   @spec assert_instance(Child.state_t(), Pad.ref_t()) ::
           :ok | unknown_pad_error_t
   def assert_instance(state, pad_ref) do
-    if state |> StateDispatcher.get_child(:pads) |> Map.get(:data) |> Map.has_key?(pad_ref) do
+    if StateDispatcher.get_child(state, :pads).data |> Map.has_key?(pad_ref) do
       :ok
     else
       {:error, {:unknown_pad, pad_ref}}
@@ -61,7 +60,6 @@ defmodule Membrane.Core.Child.PadModel do
     end
   end
 
-  @spec assert_data!(any, any, any) :: {:=, [], [:ok | {{any, any, any}, [], [...]}, ...]}
   defmacro assert_data!(state, pad_ref, pattern) do
     quote do
       :ok = unquote(__MODULE__).assert_data(unquote(state), unquote(pad_ref), unquote(pattern))
@@ -72,13 +70,11 @@ defmodule Membrane.Core.Child.PadModel do
   def filter_refs_by_data(state, constraints \\ %{})
 
   def filter_refs_by_data(state, constraints) when constraints == %{} do
-    state |> StateDispatcher.get_child(:pads) |> Map.get(:data) |> Map.keys()
+    StateDispatcher.get_child(state, :pads).data |> Map.keys()
   end
 
   def filter_refs_by_data(state, constraints) do
-    state
-    |> StateDispatcher.get_child(:pads)
-    |> Map.get(:data)
+    StateDispatcher.get_child(state, :pads).data
     |> Enum.filter(fn {_name, data} -> data |> constraints_met?(constraints) end)
     |> Keyword.keys()
   end
@@ -87,15 +83,11 @@ defmodule Membrane.Core.Child.PadModel do
   def filter_data(state, constraints \\ %{})
 
   def filter_data(state, constraints) when constraints == %{} do
-    state
-    |> StateDispatcher.get_child(:pads)
-    |> Map.get(:data)
+    StateDispatcher.get_child(state, :pads).data
   end
 
   def filter_data(state, constraints) do
-    state
-    |> StateDispatcher.get_child(:pads)
-    |> Map.get(:data)
+    StateDispatcher.get_child(state, :pads).data
     |> Enum.filter(fn {_name, data} -> data |> constraints_met?(constraints) end)
     |> Map.new()
   end
@@ -150,8 +142,7 @@ defmodule Membrane.Core.Child.PadModel do
            state
            |> StateDispatcher.get_child(:pads)
            |> Bunch.Access.get_and_update_in(data_keys(pad_ref, keys), f)
-           |> then(&StateDispatcher.update_child(state, pads: &1))
-           ~> {:ok, &1} do
+           |> then(&{elem(&1, 0), StateDispatcher.update_child(state, pads: elem(&1, 1))}) do
       {:ok, state}
     else
       {{:error, reason}, state} -> {{:error, reason}, state}

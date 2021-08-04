@@ -1,5 +1,6 @@
 defmodule Membrane.Core.Element.CapsControllerTest do
   use ExUnit.Case, async: true
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Buffer
   alias Membrane.Caps.Mock, as: MockCaps
@@ -9,7 +10,6 @@ defmodule Membrane.Core.Element.CapsControllerTest do
   alias Membrane.Support.DemandsTest.Filter
 
   require Message
-  use StateDispatcher
 
   @module Membrane.Core.Element.CapsController
 

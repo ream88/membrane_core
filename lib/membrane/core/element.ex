@@ -147,11 +147,13 @@ defmodule Membrane.Core.Element do
 
   @impl GenServer
   def handle_call(Message.new(:set_stream_sync, sync), _from, state) do
-    state
-    |> StateDispatcher.get_element(:synchronization)
-    |> Map.put(:stream_sync, sync)
-    |> then(&StateDispatcher.update_element(state, synchronization: &1))
-    |> then(&reply({:ok, &1}))
+    new_state =
+      state
+      |> StateDispatcher.get_element(:synchronization)
+      |> Map.put(:stream_sync, sync)
+      |> then(&StateDispatcher.update_element(state, synchronization: &1))
+
+    reply({:ok, new_state})
   end
 
   @impl GenServer

@@ -5,6 +5,7 @@ defmodule Membrane.Core.Element.ActionHandler do
 
   use Bunch
   use Membrane.Core.CallbackHandler
+  use Membrane.Core.StateDispatcher
 
   import Membrane.Pad, only: [is_pad_ref: 1]
 
@@ -17,8 +18,6 @@ defmodule Membrane.Core.Element.ActionHandler do
   require Membrane.Logger
   require Membrane.Core.Child.PadModel
   require Membrane.Core.Message
-  require State
-  use StateDispatcher
 
   @impl CallbackHandler
   def handle_action(action, callback, params, state) do
@@ -185,8 +184,7 @@ defmodule Membrane.Core.Element.ActionHandler do
     state
     |> StateDispatcher.get_element(:synchronization)
     |> Map.put(:latency, latency)
-    |> then(&StateDispatcher.update_element(state, synchronization: &1))
-    ~> {:ok, &1}
+    |> then(&{:ok, StateDispatcher.update_element(state, synchronization: &1)})
   end
 
   defp do_handle_action(

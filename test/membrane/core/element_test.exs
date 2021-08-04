@@ -1,11 +1,11 @@
 defmodule Membrane.Core.ElementTest do
   use ExUnit.Case, async: true
+  use Membrane.Core.StateDispatcher
 
   alias __MODULE__.SomeElement
   alias Membrane.Core.{Element, Message, StateDispatcher}
 
   require Membrane.Core.Message
-  use StateDispatcher
 
   defmodule SomeElement do
     use Membrane.Source

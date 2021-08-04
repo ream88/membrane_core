@@ -2,6 +2,7 @@ defmodule Membrane.Core.Parent.LifecycleController do
   @moduledoc false
   use Bunch
   use Membrane.Core.PlaybackHandler
+  use Membrane.Core.StateDispatcher
 
   alias Bunch.Type
   alias Membrane.{Child, Core, Notification, Pad, Sync}
@@ -22,7 +23,6 @@ defmodule Membrane.Core.Parent.LifecycleController do
   require Membrane.Core.Message
   require Membrane.Logger
   require Membrane.PlaybackState
-  use StateDispatcher
 
   @impl PlaybackHandler
   def handle_playback_state(old, new, state) do

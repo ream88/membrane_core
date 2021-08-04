@@ -1,5 +1,6 @@
 defmodule Membrane.Core.PipelineTest do
   use ExUnit.Case
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.{Message, StateDispatcher}
   alias Membrane.Core.Pipeline.{ActionHandler, State}
@@ -7,7 +8,6 @@ defmodule Membrane.Core.PipelineTest do
   alias Membrane.Testing
 
   require Membrane.Core.Message
-  use StateDispatcher
 
   @module Membrane.Core.Pipeline
 

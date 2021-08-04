@@ -8,9 +8,9 @@ defmodule Membrane.Core.Element.CallbackContext do
     parent_clock: Membrane.Clock.t() | nil,
     name: Membrane.Element.name_t()
 
-  alias Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher
 
-  use StateDispatcher
+  alias Membrane.Core.StateDispatcher
 
   @impl true
   def extract_default_fields(state, args) do

@@ -1,11 +1,10 @@
 defmodule Membrane.Core.Parent.ChildrenModel do
   @moduledoc false
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.{Child, ChildEntry}
   alias Membrane.Core.Parent
   alias Membrane.Core.StateDispatcher
-
-  use StateDispatcher
 
   @type children_t :: %{Child.name_t() => ChildEntry.t()}
 

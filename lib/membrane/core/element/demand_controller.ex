@@ -4,6 +4,7 @@ defmodule Membrane.Core.Element.DemandController do
   # Module handling demands incoming through output pads.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.{CallbackHandler, StateDispatcher}
   alias Membrane.Core.Child.PadModel
@@ -13,7 +14,6 @@ defmodule Membrane.Core.Element.DemandController do
 
   require Membrane.Core.Child.PadModel
   require Membrane.Logger
-  use StateDispatcher
 
   @doc """
   Handles demand coming on a output pad. Updates demand value and executes `handle_demand` callback.
@@ -42,7 +42,6 @@ defmodule Membrane.Core.Element.DemandController do
       |> PadModel.get_and_update_data!(pad_ref, :demand, fn demand ->
         (demand + size) ~> {&1, &1}
       end)
-      |> then(&{elem(&1, 0), StateDispatcher.update_element(state, pads: elem(&1, 1))})
 
     if exec_handle_demand?(pad_ref, state) do
       %{other_demand_unit: unit} = PadModel.get_data!(state, pad_ref)

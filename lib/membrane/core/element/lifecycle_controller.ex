@@ -6,6 +6,7 @@ defmodule Membrane.Core.Element.LifecycleController do
 
   use Bunch
   use Membrane.Core.PlaybackHandler
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.{Clock, Core, Element, Sync}
   alias Membrane.Core.{CallbackHandler, Message, StateDispatcher}
@@ -17,15 +18,12 @@ defmodule Membrane.Core.Element.LifecycleController do
   require Membrane.Core.Message
   require Membrane.Core.Playback
   require Membrane.Logger
-  use StateDispatcher
 
   @doc """
   Performs initialization tasks and executes `handle_init` callback.
   """
   @spec handle_init(Element.options_t(), State.t()) :: State.stateful_try_t()
-  def handle_init(options, state) do
-    module = StateDispatcher.get_element(state, :module)
-
+  def handle_init(options, State.state(module: module) = state) do
     Membrane.Logger.debug(
       "Initializing element: #{inspect(module)}, options: #{inspect(options)}"
     )
@@ -87,8 +85,7 @@ defmodule Membrane.Core.Element.LifecycleController do
       """)
     end
 
-    module = StateDispatcher.get_element(state, :module)
-    internal_state = StateDispatcher.get_element(state, :internal_state)
+    State.state(module: module, internal_state: internal_state) = state
 
     :ok = module.handle_shutdown(reason, internal_state)
     {:ok, state}
@@ -131,9 +128,7 @@ defmodule Membrane.Core.Element.LifecycleController do
 
     state =
       if old_playback_state == :playing and new_playback_state == :prepared do
-        state
-        |> StateDispatcher.get_element(:pads)
-        |> Map.get(:data)
+        StateDispatcher.get_element(state, :pads).data
         |> Map.values()
         |> Enum.filter(&(&1.direction == :input))
         |> Enum.map(& &1.ref)

@@ -4,6 +4,7 @@ defmodule Membrane.Core.Child.PadController do
   # Module handling linking and unlinking pads.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Bunch.Type
   alias Membrane.{Core, LinkError, Pad, ParentSpec}
@@ -18,7 +19,6 @@ defmodule Membrane.Core.Child.PadController do
   require Membrane.Core.Message
   require Membrane.Logger
   require Membrane.Pad
-  use StateDispatcher
 
   @type state_t :: Core.Bin.State.t() | Core.Element.State.t()
 
@@ -62,8 +62,8 @@ defmodule Membrane.Core.Child.PadController do
           :static ->
             state
             |> StateDispatcher.get_child(:pads)
-            |> pop_in([:info, name])
-            |> then(&StateDispatcher.update_child(state, pads: elem(&1, 1)))
+            |> Map.update!(:info, &(&1 |> Map.delete(name)))
+            |> then(&StateDispatcher.update_child(state, pads: &1))
 
           :dynamic ->
             add_to_currently_linking(this.pad_ref, state)

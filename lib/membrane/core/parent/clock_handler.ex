@@ -1,11 +1,10 @@
 defmodule Membrane.Core.Parent.ClockHandler do
   @moduledoc false
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.{Clock, Core, ParentError}
   alias Membrane.Core.StateDispatcher
   alias Membrane.Core.Parent.ChildEntryParser
-
-  use StateDispatcher
 
   @spec choose_clock(
           [ChildEntryParser.raw_child_entry_t()],

@@ -1,10 +1,8 @@
 defmodule Membrane.ClockTest do
   use ExUnit.Case
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.{Pipeline.State, StateDispatcher}
-
-  require State
-  use StateDispatcher
 
   @module Membrane.Clock
 

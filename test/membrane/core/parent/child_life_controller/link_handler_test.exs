@@ -1,5 +1,6 @@
 defmodule Membrane.Core.Parent.ChildLifeController.LinkHandlerTest do
   use ExUnit.Case
+  use Membrane.Core.StateDispatcher
 
   import Membrane.ParentSpec
 
@@ -14,7 +15,6 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandlerTest do
 
   require Membrane.Core.Message
   require Membrane.Pad
-  use StateDispatcher
 
   defp get_state(child_module, opts \\ []) do
     pid = Keyword.get(opts, :pid, nil)

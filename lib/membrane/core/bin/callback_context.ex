@@ -8,9 +8,9 @@ defmodule Membrane.Core.Bin.CallbackContext do
     name: Membrane.Bin.name_t(),
     children: %{Membrane.Child.name_t() => Membrane.ChildEntry.t()}
 
-  alias Membrane.Core.StateDispatcher
+  use Membrane.Core.StateDispatcher
 
-  use StateDispatcher
+  alias Membrane.Core.StateDispatcher
 
   @impl true
   def extract_default_fields(state, args) do

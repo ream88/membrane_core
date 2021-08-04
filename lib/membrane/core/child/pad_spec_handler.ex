@@ -4,13 +4,13 @@ defmodule Membrane.Core.Child.PadSpecHandler do
   # Module parsing pads specifications in elements and bins.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.{Bin, Child, Element, StateDispatcher}
   alias Membrane.Core.Child.PadModel
   alias Membrane.Pad
 
   require Membrane.Pad
-  use StateDispatcher
 
   @private_input_pad_spec_keys [:demand_unit]
 

@@ -1,6 +1,7 @@
 defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
   @moduledoc false
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.{CallbackError, ChildEntry, Clock, Core, ParentError, Sync}
   alias Membrane.Core.{CallbackHandler, Component, Message, Parent, StateDispatcher}
@@ -9,7 +10,6 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
   require Membrane.Core.Component
   require Membrane.Core.Message
   require Membrane.Logger
-  use StateDispatcher
 
   @spec check_if_children_names_unique([ChildEntryParser.raw_child_entry_t()], Parent.state_t()) ::
           :ok | no_return
@@ -104,8 +104,8 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
 
     action_handler =
       case StateDispatcher.module_of(state) do
-        Core.Bin.State -> Core.Bin.ActionHandler
         Core.Pipeline.State -> Core.Pipeline.ActionHandler
+        Core.Bin.State -> Core.Bin.ActionHandler
       end
 
     callback_res =

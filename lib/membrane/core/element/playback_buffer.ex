@@ -7,6 +7,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
 
   use Bunch
   use Bunch.Access
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.Child.PadModel
 
@@ -24,8 +25,6 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
   require Membrane.Core.Child.PadModel
   require Membrane.Core.Message
   require Membrane.Logger
-  require State
-  use StateDispatcher
 
   @type t :: %__MODULE__{
           q: Qex.t()
@@ -91,15 +90,15 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
     Membrane.Logger.debug("Evaluating playback buffer")
 
     with {:ok, state} <-
-           state
-           |> StateDispatcher.get_element(:playback_buffer)
-           |> Map.get(:q)
+           StateDispatcher.get_element(state, :playback_buffer).q
            |> Bunch.Enum.try_reduce(state, &exec/2) do
-      state
-      |> StateDispatcher.get_element(:playback_buffer)
-      |> Map.put(:q, @qe.new)
-      |> then(&StateDispatcher.update_element(state, playback_buffer: &1))
-      ~> {:ok, &1}
+      state =
+        state
+        |> StateDispatcher.get_element(:playback_buffer)
+        |> Map.put(:q, @qe.new)
+        |> then(&StateDispatcher.update_element(state, playback_buffer: &1))
+
+      {:ok, state}
     end
   end
 
@@ -113,7 +112,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
     q
     |> Enum.filter(fn msg -> Message.for_pad(msg) != pad_ref end)
     |> Enum.into(%@qe{})
-    ~> %__MODULE__{buf | q: &1}
+    ~> %{buf | q: &1}
   end
 
   @spec empty?(t) :: boolean

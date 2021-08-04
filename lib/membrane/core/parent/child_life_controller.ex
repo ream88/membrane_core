@@ -1,6 +1,7 @@
 defmodule Membrane.Core.Parent.ChildLifeController do
   @moduledoc false
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias __MODULE__.{CrashGroupHandler, LinkHandler, StartupHandler}
   alias Membrane.ParentSpec
@@ -19,7 +20,6 @@ defmodule Membrane.Core.Parent.ChildLifeController do
   require Membrane.Bin
   require Membrane.Element
   require Membrane.Logger
-  use StateDispatcher
 
   @spec handle_spec(ParentSpec.t(), Parent.state_t()) ::
           {{:ok, [Membrane.Child.name_t()]}, Parent.state_t()} | no_return
@@ -131,11 +131,11 @@ defmodule Membrane.Core.Parent.ChildLifeController do
 
     cond do
       playback.pending_state == nil and playback.state == child_pb_state ->
-        set_child_playback_synced(state, child)
-        ~> {:ok, &1}
+        state = set_child_playback_synced(state, child)
+        {:ok, state}
 
       playback.pending_state == child_pb_state ->
-        set_child_playback_synced(state, child)
+        state = set_child_playback_synced(state, child)
         LifecycleController.maybe_finish_playback_transition(state)
 
       true ->
@@ -155,12 +155,14 @@ defmodule Membrane.Core.Parent.ChildLifeController do
           {:ok | {:error, :not_child}, Parent.state_t()}
   def handle_child_death(pid, :normal, state) do
     with {:ok, child_name} <- child_by_pid(pid, state) do
-      state
-      |> StateDispatcher.get_parent(:children)
-      |> Map.delete(child_name)
-      |> then(&StateDispatcher.update_parent(state, children: &1))
-      |> remove_child_links(child_name)
-      |> LifecycleController.maybe_finish_playback_transition()
+      state =
+        state
+        |> StateDispatcher.get_parent(:children)
+        |> Map.delete(child_name)
+        |> then(&StateDispatcher.update_parent(state, children: &1))
+
+      state = remove_child_links(child_name, state)
+      LifecycleController.maybe_finish_playback_transition(state)
     else
       {:error, :not_child} ->
         raise Membrane.PipelineError,
@@ -176,10 +178,11 @@ defmodule Membrane.Core.Parent.ChildLifeController do
         |> CrashGroupHandler.remove_crash_group_if_empty(group.name)
 
       if result == :removed do
-        state
-        |> StateDispatcher.get_parent(:children)
-        |> Map.drop(group.members)
-        |> then(&StateDispatcher.update_parent(state, children: &1))
+        state =
+          state
+          |> StateDispatcher.get_parent(:children)
+          |> Map.drop(group.members)
+          |> then(&StateDispatcher.update_parent(state, children: &1))
 
         exec_handle_crash_group_down_callback(group.name, group.members, state)
       else
@@ -246,7 +249,7 @@ defmodule Membrane.Core.Parent.ChildLifeController do
     {:stop, {:shutdown, :child_crash}, state}
   end
 
-  defp remove_child_links(state, child_name) do
+  defp remove_child_links(child_name, state) do
     state
     |> StateDispatcher.get_parent(:links)
     |> Enum.reject(fn %Link{from: from, to: to} ->

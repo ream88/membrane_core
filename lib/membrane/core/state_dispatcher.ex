@@ -36,7 +36,7 @@ defmodule Membrane.Core.StateDispatcher do
       end)
 
     quote do
-      unquote_splicing(requires)
+      (unquote_splicing(requires))
     end
   end
 
@@ -80,7 +80,7 @@ defmodule Membrane.Core.StateDispatcher do
     end
   end
 
-  @components -- [:element]
+  (@components -- [:element])
   |> Enum.map(fn component ->
     defmacro unquote(component)(kw) do
       module = module_of(unquote(component))

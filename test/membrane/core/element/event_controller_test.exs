@@ -1,5 +1,6 @@
 defmodule Membrane.Core.Element.EventControllerTest do
   use ExUnit.Case
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.Element.EventController
   alias Membrane.Core.{Events, InputBuffer, Message, StateDispatcher}
@@ -7,7 +8,6 @@ defmodule Membrane.Core.Element.EventControllerTest do
   alias Membrane.Pad.Data
 
   require Membrane.Core.Message
-  use StateDispatcher
 
   defmodule MockEventHandlingElement do
     use Membrane.Filter

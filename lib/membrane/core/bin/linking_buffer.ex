@@ -1,5 +1,6 @@
 defmodule Membrane.Core.Bin.LinkingBuffer do
   @moduledoc false
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.Core.Bin.State
   alias Membrane.Core.Child.PadModel
@@ -8,7 +9,6 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
 
   require Message
   require Pad
-  use StateDispatcher
 
   @type t :: %{Pad.name_t() => [Message.t()]}
 

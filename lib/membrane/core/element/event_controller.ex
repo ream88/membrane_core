@@ -4,6 +4,7 @@ defmodule Membrane.Core.Element.EventController do
   # Module handling events incoming through input pads.
 
   use Bunch
+  use Membrane.Core.StateDispatcher
 
   alias Membrane.{Event, Pad, Sync}
   alias Membrane.Core.{CallbackHandler, Events, InputBuffer, Message, Telemetry, StateDispatcher}
@@ -14,7 +15,6 @@ defmodule Membrane.Core.Element.EventController do
   require Membrane.Core.Child.PadModel
   require Membrane.Core.Message
   require Membrane.Logger
-  use StateDispatcher
 
   @spec handle_start_of_stream(Pad.ref_t(), State.t()) :: State.stateful_try_t()
   def handle_start_of_stream(pad_ref, state) do
@@ -96,7 +96,9 @@ defmodule Membrane.Core.Element.EventController do
         state
       )
 
-    if watcher = StateDispatcher.get_element(state, :watcher) do
+    watcher = StateDispatcher.get_element(state, :watcher)
+
+    if watcher do
       Message.send(watcher, callback, [StateDispatcher.get_element(state, :name), pad_ref])
     end
 
@@ -113,9 +115,7 @@ defmodule Membrane.Core.Element.EventController do
   end
 
   defp check_sync(%Events.StartOfStream{}, state) do
-    if state
-       |> StateDispatcher.get_element(:pads)
-       |> Map.get(:data)
+    if StateDispatcher.get_element(state, :pads).data
        |> Map.values()
        |> Enum.filter(&(&1.direction == :input))
        |> Enum.all?(& &1.start_of_stream?) do
