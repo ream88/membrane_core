@@ -13,7 +13,7 @@ defmodule Membrane.Core.Element.CapsController do
 
   require Membrane.Core.Child.PadModel
   require Membrane.Logger
-  require StateDispatcher
+  use StateDispatcher
 
   @doc """
   Handles incoming caps: either stores them in InputBuffer, or executes element callback.

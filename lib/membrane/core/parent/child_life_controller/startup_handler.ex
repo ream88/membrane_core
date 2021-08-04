@@ -9,7 +9,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.StartupHandler do
   require Membrane.Core.Component
   require Membrane.Core.Message
   require Membrane.Logger
-  require StateDispatcher
+  use StateDispatcher
 
   @spec check_if_children_names_unique([ChildEntryParser.raw_child_entry_t()], Parent.state_t()) ::
           :ok | no_return

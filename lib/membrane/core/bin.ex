@@ -9,10 +9,12 @@ defmodule Membrane.Core.Bin do
   alias Membrane.{CallbackError, Core, ComponentPath, Pad, Sync}
   alias Membrane.Core.{CallbackHandler, Message, StateDispatcher}
   alias Membrane.Core.Child.{PadController, PadSpecHandler}
+  alias Membrane.Core.Bin.State
 
   require Membrane.Core.Message
   require Membrane.Logger
-  require StateDispatcher
+  use StateDispatcher
+  require State
 
   @type options_t :: %{
           name: atom,

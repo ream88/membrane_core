@@ -5,7 +5,7 @@ defmodule Membrane.Core.Parent.ClockHandler do
   alias Membrane.Core.StateDispatcher
   alias Membrane.Core.Parent.ChildEntryParser
 
-  require StateDispatcher
+  use StateDispatcher
 
   @spec choose_clock(
           [ChildEntryParser.raw_child_entry_t()],

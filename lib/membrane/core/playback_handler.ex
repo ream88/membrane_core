@@ -15,7 +15,7 @@ defmodule Membrane.Core.PlaybackHandler do
 
   require Message
   require PlaybackState
-  require StateDispatcher
+  use StateDispatcher
 
   @type handler_return_t ::
           {:ok | {:error, any()}, Component.state_t()} | {:stop, any(), Component.state_t()}

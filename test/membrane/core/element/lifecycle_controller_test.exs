@@ -6,7 +6,7 @@ defmodule Membrane.Core.Element.LifecycleControllerTest do
   alias Membrane.Pad.Data
 
   require Membrane.Core.Message
-  require StateDispatcher
+  use StateDispatcher
 
   defmodule DummyElement do
     use Membrane.Filter

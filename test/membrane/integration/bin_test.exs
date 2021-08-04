@@ -10,7 +10,7 @@ defmodule Membrane.Core.BinTest do
   alias Membrane.Testing
 
   require State
-  require StateDispatcher
+  use StateDispatcher
 
   describe "Starting and transmitting buffers" do
     test "in simple, flat use case" do

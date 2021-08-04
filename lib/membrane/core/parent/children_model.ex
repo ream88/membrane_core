@@ -5,7 +5,7 @@ defmodule Membrane.Core.Parent.ChildrenModel do
   alias Membrane.Core.Parent
   alias Membrane.Core.StateDispatcher
 
-  require StateDispatcher
+  use StateDispatcher
 
   @type children_t :: %{Child.name_t() => ChildEntry.t()}
 

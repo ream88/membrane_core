@@ -5,7 +5,7 @@ defmodule Membrane.Core.ElementTest do
   alias Membrane.Core.{Element, Message, StateDispatcher}
 
   require Membrane.Core.Message
-  require StateDispatcher
+  use StateDispatcher
 
   defmodule SomeElement do
     use Membrane.Source

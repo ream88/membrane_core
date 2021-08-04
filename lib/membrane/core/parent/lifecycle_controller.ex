@@ -22,7 +22,7 @@ defmodule Membrane.Core.Parent.LifecycleController do
   require Membrane.Core.Message
   require Membrane.Logger
   require Membrane.PlaybackState
-  require StateDispatcher
+  use StateDispatcher
 
   @impl PlaybackHandler
   def handle_playback_state(old, new, state) do

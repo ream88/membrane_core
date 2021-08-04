@@ -25,7 +25,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
   require Membrane.Core.Message
   require Membrane.Logger
   require State
-  require StateDispatcher
+  use StateDispatcher
 
   @type t :: %__MODULE__{
           q: Qex.t()
@@ -113,7 +113,7 @@ defmodule Membrane.Core.Element.PlaybackBuffer do
     q
     |> Enum.filter(fn msg -> Message.for_pad(msg) != pad_ref end)
     |> Enum.into(%@qe{})
-    ~> %{buf | q: &1}
+    ~> %__MODULE__{buf | q: &1}
   end
 
   @spec empty?(t) :: boolean

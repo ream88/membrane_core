@@ -17,7 +17,7 @@ defmodule Membrane.Core.Element.LifecycleController do
   require Membrane.Core.Message
   require Membrane.Core.Playback
   require Membrane.Logger
-  require StateDispatcher
+  use StateDispatcher
 
   @doc """
   Performs initialization tasks and executes `handle_init` callback.

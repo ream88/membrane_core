@@ -18,7 +18,7 @@ defmodule Membrane.Core.Child.PadController do
   require Membrane.Core.Message
   require Membrane.Logger
   require Membrane.Pad
-  require StateDispatcher
+  use StateDispatcher
 
   @type state_t :: Core.Bin.State.t() | Core.Element.State.t()
 
@@ -378,7 +378,10 @@ defmodule Membrane.Core.Child.PadController do
   end
 
   defp flush_playback_buffer(pad_ref, state) do
-    new_playback_buf = PlaybackBuffer.flush_for_pad(state.playback_buffer, pad_ref)
+    new_playback_buf =
+      state
+      |> StateDispatcher.get_element(:playback_buffer)
+      |> PlaybackBuffer.flush_for_pad(pad_ref)
 
     {:ok, StateDispatcher.update_element(state, playback_buffer: new_playback_buf)}
   end

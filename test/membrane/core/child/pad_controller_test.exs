@@ -9,7 +9,7 @@ defmodule Membrane.Core.Child.PadControllerTest do
 
   require Message
   require Pad
-  require StateDispatcher
+  use StateDispatcher
 
   @module Membrane.Core.Child.PadController
 

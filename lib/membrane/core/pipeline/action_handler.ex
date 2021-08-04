@@ -7,7 +7,7 @@ defmodule Membrane.Core.Pipeline.ActionHandler do
   alias Membrane.ParentSpec
 
   require Membrane.Logger
-  require StateDispatcher
+  use StateDispatcher
 
   @impl CallbackHandler
   # Deprecation
@@ -15,7 +15,7 @@ defmodule Membrane.Core.Pipeline.ActionHandler do
     Membrane.Logger.warn("""
     Returning bare spec from `handle_init` is deprecated.
     Return `{{:ok, spec: spec}, state}` instead.
-    Found in `#{inspect(state.module)}.handle_init/1`.
+    Found in `#{inspect(StateDispatcher.get_any(state, :module))}.handle_init/1`.
     """)
 
     super([spec: spec], :handle_init, params, state)

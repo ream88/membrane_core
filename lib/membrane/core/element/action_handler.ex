@@ -18,7 +18,7 @@ defmodule Membrane.Core.Element.ActionHandler do
   require Membrane.Core.Child.PadModel
   require Membrane.Core.Message
   require State
-  require StateDispatcher
+  use StateDispatcher
 
   @impl CallbackHandler
   def handle_action(action, callback, params, state) do

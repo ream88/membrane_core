@@ -12,7 +12,7 @@ defmodule Membrane.Core.CallbackHandler do
   alias Membrane.Core.StateDispatcher
 
   require Membrane.Logger
-  require StateDispatcher
+  use StateDispatcher
 
   @type state_t :: Membrane.Core.Component.state_t()
 

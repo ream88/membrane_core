@@ -10,7 +10,7 @@ defmodule Membrane.Core.Pipeline do
 
   require Membrane.Logger
   require State
-  require StateDispatcher
+  use StateDispatcher
 
   @impl GenServer
   def init({module, pipeline_options}) do

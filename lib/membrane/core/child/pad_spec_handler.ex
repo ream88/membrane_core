@@ -10,7 +10,7 @@ defmodule Membrane.Core.Child.PadSpecHandler do
   alias Membrane.Pad
 
   require Membrane.Pad
-  require StateDispatcher
+  use StateDispatcher
 
   @private_input_pad_spec_keys [:demand_unit]
 

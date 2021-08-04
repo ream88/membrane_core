@@ -9,7 +9,7 @@ defmodule Membrane.Core.Element.ActionHandlerTest do
   alias Membrane.Support.Element.{TrivialFilter, TrivialSource}
 
   require Message
-  require StateDispatcher
+  use StateDispatcher
 
   @module Membrane.Core.Element.ActionHandler
 

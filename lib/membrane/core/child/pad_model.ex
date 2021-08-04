@@ -9,7 +9,7 @@ defmodule Membrane.Core.Child.PadModel do
   alias Membrane.Core.{Child, StateDispatcher}
   alias Membrane.Pad
 
-  require StateDispatcher
+  use StateDispatcher
 
   @type pads_data_t :: %{Pad.ref_t() => Pad.Data.t()}
 
@@ -183,7 +183,7 @@ defmodule Membrane.Core.Child.PadModel do
            state
            |> StateDispatcher.get_child(:pads)
            |> Bunch.Access.get_and_update_in(data_keys(pad_ref, keys), f)
-           |> then(&StateDispatcher.update_child(state, pads: &1)) do
+           |> then(&{elem(&1, 0), StateDispatcher.update_child(state, pads: elem(&1, 1))}) do
       {{:ok, out}, state}
     else
       {{:error, reason}, state} -> {{:error, reason}, state}
@@ -203,7 +203,7 @@ defmodule Membrane.Core.Child.PadModel do
     state
     |> StateDispatcher.get_child(:pads)
     |> Bunch.Access.get_and_update_in(data_keys(pad_ref, keys), f)
-    |> then(&StateDispatcher.update_child(state, pads: &1))
+    |> then(&{elem(&1, 0), StateDispatcher.update_child(state, pads: elem(&1, 1))})
   end
 
   @spec pop_data(Child.state_t(), Pad.ref_t()) ::

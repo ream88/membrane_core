@@ -17,18 +17,18 @@ defmodule Membrane.Core.Element do
 
   use Bunch
   use GenServer
+  use Membrane.Core.StateDispatcher
 
   import Membrane.Helper.GenServer
 
   alias Membrane.{Clock, Element, Sync}
   alias Membrane.Core.Element.{LifecycleController, PlaybackBuffer, State}
-  alias Membrane.Core.{Child, Message, PlaybackHandler, TimerController}
+  alias Membrane.Core.{Child, Message, PlaybackHandler, StateDispatcher, TimerController}
   alias Membrane.ComponentPath
   alias Membrane.Core.Child.PadController
 
   require Membrane.Core.Message
   require Membrane.Logger
-  require State
 
   @type options_t :: %{
           module: module,
@@ -105,7 +105,7 @@ defmodule Membrane.Core.Element do
       options
       |> Map.take([:module, :name, :parent_clock, :sync])
       |> Map.put(:parent_monitor, parent_monitor)
-      |> State.new()
+      |> StateDispatcher.element()
 
     with {:ok, state} <- LifecycleController.handle_init(options.user_options, state) do
       {:ok, state}
@@ -147,8 +147,11 @@ defmodule Membrane.Core.Element do
 
   @impl GenServer
   def handle_call(Message.new(:set_stream_sync, sync), _from, state) do
-    new_state = put_in(state.synchronization.stream_sync, sync)
-    reply({:ok, new_state})
+    state
+    |> StateDispatcher.get_element(:synchronization)
+    |> Map.put(:stream_sync, sync)
+    |> then(&StateDispatcher.update_element(state, synchronization: &1))
+    |> then(&reply({:ok, &1}))
   end
 
   @impl GenServer

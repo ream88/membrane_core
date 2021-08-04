@@ -9,7 +9,7 @@ defmodule Membrane.Core.Bin.ActionHandler do
   require Membrane.Logger
   require Message
   require State
-  require StateDispatcher
+  use StateDispatcher
 
   @impl CallbackHandler
   def handle_action({:forward, children_messages}, _cb, _params, state) do

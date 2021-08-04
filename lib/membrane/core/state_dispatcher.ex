@@ -26,6 +26,20 @@ defmodule Membrane.Core.StateDispatcher do
 
   require Record
 
+  defmacro __using__(_) do
+    requires =
+      @components
+      |> Enum.map(fn component ->
+        quote do
+          require unquote(module_of(component))
+        end
+      end)
+
+    quote do
+      unquote_splicing(requires)
+    end
+  end
+
   @spec restrict(group_t() | component_t()) :: [component_t()]
   def restrict(spec) when spec in @groups, do: @membership[spec]
   def restrict(spec) when spec in @components, do: [spec]
@@ -46,22 +60,32 @@ defmodule Membrane.Core.StateDispatcher do
   defguard pipeline?(state) when Record.is_record(state, Membrane.Core.Pipeline.State)
 
   # FIXME: inconsistent State initialisation
-  defmacro element(map) when is_map(map) do
+  defmacro element(kw) do
     module = module_of(:element)
 
     quote do
-      require unquote(module)
-      unquote(module).new(unquote(map))
+      if is_map(unquote(kw)) do
+        unquote(module).new(unquote(kw))
+      else
+        unquote(module).state(unquote(kw))
+      end
     end
   end
 
-  @components
+  defmacro element(state, kw) do
+    module = module_of(:element)
+
+    quote do
+      unquote(module).state(unquote(state), unquote(kw))
+    end
+  end
+
+  @components -- [:element]
   |> Enum.map(fn component ->
     defmacro unquote(component)(kw) do
       module = module_of(unquote(component))
 
       quote do
-        require unquote(module)
         unquote(module).state(unquote(kw))
       end
     end
@@ -70,7 +94,6 @@ defmodule Membrane.Core.StateDispatcher do
       module = module_of(unquote(component))
 
       quote do
-        require unquote(module)
         unquote(module).state(unquote(state), unquote(kw))
       end
     end
@@ -78,24 +101,27 @@ defmodule Membrane.Core.StateDispatcher do
 
   (@components ++ @groups)
   |> Enum.map(fn spec ->
-    defmacro unquote(:"get_#{spec}")(state, key), do: spec_op(unquote(spec), [state, key])
-    defmacro unquote(:"update_#{spec}")(state, kw), do: spec_op(unquote(spec), [state | kw])
+    defmacro unquote(:"get_#{spec}")(state, args), do: spec_op(unquote(spec), state, args)
+    defmacro unquote(:"update_#{spec}")(state, args), do: spec_op(unquote(spec), state, args)
   end)
 
-  defp spec_op(spec, args) when spec in @components do
+  defp spec_op(component, state, args) when component in @components do
+    module = module_of(component)
+
     quote do
-      apply(unquote(__MODULE__), unquote(spec), unquote(args))
+      unquote(module).state(unquote(state), unquote(args))
     end
   end
 
-  defp spec_op(spec, [state | _] = args) when spec in @groups do
+  defp spec_op(group, state, args) when group in @groups do
     clauses =
-      spec
+      group
       |> restrict()
       |> Enum.flat_map(fn component ->
+        module = module_of(component)
+
         quote do
-          unquote(module_of(component)) ->
-            apply(unquote(__MODULE__), unquote(component), unquote(args))
+          unquote(module) -> unquote(module).state(unquote(state), unquote(args))
         end
       end)
 

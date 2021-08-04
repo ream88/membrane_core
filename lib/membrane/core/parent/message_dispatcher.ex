@@ -8,7 +8,7 @@ defmodule Membrane.Core.Parent.MessageDispatcher do
   alias Membrane.Core.Parent.{ChildLifeController, LifecycleController}
 
   require Message
-  require StateDispatcher
+  use StateDispatcher
 
   @spec handle_message(Message.t(), Parent.state_t()) ::
           Membrane.Helper.GenServer.genserver_return_t()
@@ -67,16 +67,16 @@ defmodule Membrane.Core.Parent.MessageDispatcher do
   end
 
   defp inform_parent(state, msg, msg_params) do
-    watcher = StateDispatcher.get_parent(state, :watcher)
-
-    if not StateDispatcher.pipeline?(state) and watcher do
-      name = StateDispatcher.get_parent(state, :name)
-      Message.send(watcher, msg, [name | msg_params])
+    if not StateDispatcher.pipeline?(state) do
+      if watcher = StateDispatcher.get_child(state, :watcher) do
+        name = StateDispatcher.get_child(state, :name)
+        Message.send(watcher, msg, [name | msg_params])
+      end
     end
   end
 
   defp is_parent_pid?(pid, state) do
-    StateDispatcher.get_parent(state, :watcher) == pid
+    StateDispatcher.get_child(state, :watcher) == pid
   end
 
   defp is_child_pid?(pid, state) do

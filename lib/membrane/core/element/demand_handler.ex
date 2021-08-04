@@ -22,7 +22,7 @@ defmodule Membrane.Core.Element.DemandHandler do
   require Membrane.Core.Message
   require Membrane.Logger
   require State
-  require StateDispatcher
+  use StateDispatcher
 
   @doc """
   Updates demand on the given input pad that should be supplied by future calls

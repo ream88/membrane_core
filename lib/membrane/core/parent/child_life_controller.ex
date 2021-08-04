@@ -19,7 +19,7 @@ defmodule Membrane.Core.Parent.ChildLifeController do
   require Membrane.Bin
   require Membrane.Element
   require Membrane.Logger
-  require StateDispatcher
+  use StateDispatcher
 
   @spec handle_spec(ParentSpec.t(), Parent.state_t()) ::
           {{:ok, [Membrane.Child.name_t()]}, Parent.state_t()} | no_return

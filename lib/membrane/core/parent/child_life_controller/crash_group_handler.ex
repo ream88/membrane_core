@@ -6,7 +6,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
   alias Membrane.Core.{Parent, Pipeline, StateDispatcher}
   alias Membrane.Core.Parent.CrashGroup
 
-  require StateDispatcher
+  use StateDispatcher
 
   @spec add_crash_group(
           ParentSpec.crash_group_spec_t(),

@@ -8,7 +8,7 @@ defmodule Membrane.Core.Child.LifecycleController do
 
   require Message
   require PadModel
-  require StateDispatcher
+  use StateDispatcher
 
   @spec handle_controlling_pid(pid, Child.state_t()) :: {:ok, Child.state_t()}
   def handle_controlling_pid(pid, state),

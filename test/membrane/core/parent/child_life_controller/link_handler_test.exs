@@ -14,7 +14,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandlerTest do
 
   require Membrane.Core.Message
   require Membrane.Pad
-  require StateDispatcher
+  use StateDispatcher
 
   defp get_state(child_module, opts \\ []) do
     pid = Keyword.get(opts, :pid, nil)

@@ -4,7 +4,7 @@ defmodule Membrane.ClockTest do
   alias Membrane.Core.{Pipeline.State, StateDispatcher}
 
   require State
-  require StateDispatcher
+  use StateDispatcher
 
   @module Membrane.Clock
 

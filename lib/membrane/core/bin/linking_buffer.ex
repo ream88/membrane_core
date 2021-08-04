@@ -8,7 +8,7 @@ defmodule Membrane.Core.Bin.LinkingBuffer do
 
   require Message
   require Pad
-  require StateDispatcher
+  use StateDispatcher
 
   @type t :: %{Pad.name_t() => [Message.t()]}
 

@@ -10,7 +10,7 @@ defmodule Membrane.Core.Bin.CallbackContext do
 
   alias Membrane.Core.StateDispatcher
 
-  require StateDispatcher
+  use StateDispatcher
 
   @impl true
   def extract_default_fields(state, args) do

@@ -7,8 +7,7 @@ defmodule Membrane.Core.PipelineTest do
   alias Membrane.Testing
 
   require Membrane.Core.Message
-  require State
-  require StateDispatcher
+  use StateDispatcher
 
   @module Membrane.Core.Pipeline
 

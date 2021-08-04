@@ -7,7 +7,7 @@ defmodule Membrane.Core.Element.EventControllerTest do
   alias Membrane.Pad.Data
 
   require Membrane.Core.Message
-  require StateDispatcher
+  use StateDispatcher
 
   defmodule MockEventHandlingElement do
     use Membrane.Filter

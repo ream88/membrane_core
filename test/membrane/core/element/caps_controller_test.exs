@@ -9,7 +9,7 @@ defmodule Membrane.Core.Element.CapsControllerTest do
   alias Membrane.Support.DemandsTest.Filter
 
   require Message
-  require StateDispatcher
+  use StateDispatcher
 
   @module Membrane.Core.Element.CapsController
 

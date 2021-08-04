@@ -7,7 +7,7 @@ defmodule Membrane.Core.TimerController do
 
   require Membrane.Core.Component
   require Membrane.Element.CallbackContext.Tick
-  require StateDispatcher
+  use StateDispatcher
 
   @spec start_timer(Timer.id_t(), Timer.interval_t(), Clock.t(), Component.state_t()) ::
           {:ok, Component.state_t()}

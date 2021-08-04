@@ -12,7 +12,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
 
   require Membrane.Core.Message
   require Membrane.Pad
-  require StateDispatcher
+  use StateDispatcher
 
   @spec resolve_links([LinkParser.raw_link_t()], Parent.state_t()) ::
           [Parent.Link.t()]
@@ -93,7 +93,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
     withl pad:
             {:ok, priv_info} <-
               Map.fetch(
-                StateDispatcher.get_parent(state, :pads).info,
+                StateDispatcher.get_bin(state, :pads).info,
                 Pad.name_by_ref(priv_pad_spec)
               ),
           do: dynamic? = Pad.is_availability_dynamic(priv_info.availability),
@@ -104,7 +104,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
     else
       pad: :error ->
         raise LinkError,
-              "Bin #{inspect(StateDispatcher.get_parent(state, :name))} does not have pad #{inspect(pad_spec)}"
+              "Bin #{inspect(StateDispatcher.get_bin(state, :name))} does not have pad #{inspect(pad_spec)}"
 
       name: true ->
         raise LinkError,
@@ -116,7 +116,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
 
       ref: {:error, :invalid_availability} ->
         raise LinkError,
-              "Dynamic pad ref #{inspect(pad_spec)} passed for static pad of bin #{inspect(StateDispatcher.get_parent(state, :name))}"
+              "Dynamic pad ref #{inspect(pad_spec)} passed for static pad of bin #{inspect(StateDispatcher.get_bin(state, :name))}"
     end
   end
 
