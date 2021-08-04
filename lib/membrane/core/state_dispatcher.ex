@@ -31,7 +31,7 @@ defmodule Membrane.Core.StateDispatcher do
       @components
       |> Enum.map(fn component ->
         quote do
-          require unquote(module_of(component))
+          require unquote(component_to_module(component))
         end
       end)
 
@@ -44,16 +44,11 @@ defmodule Membrane.Core.StateDispatcher do
   def restrict(spec) when spec in @groups, do: @membership[spec]
   def restrict(spec) when spec in @components, do: [spec]
 
-  @spec module_of(state_t() | component_t()) :: module_t()
-  def module_of(state) when Record.is_record(state), do: elem(state, 0)
-
-  def module_of(component) when is_atom(component),
-    do:
-      Module.concat([
-        Membrane.Core,
-        component |> Atom.to_string() |> String.capitalize() |> String.to_atom(),
-        State
-      ])
+  defmacro module_of(state) do
+    quote do
+      elem(unquote(state), 0)
+    end
+  end
 
   defguard bin?(state) when Record.is_record(state, Membrane.Core.Bin.State)
   defguard element?(state) when Record.is_record(state, Membrane.Core.Element.State)
@@ -61,7 +56,7 @@ defmodule Membrane.Core.StateDispatcher do
 
   # FIXME: inconsistent State initialisation
   defmacro element(kw) do
-    module = module_of(:element)
+    module = component_to_module(:element)
 
     quote do
       if is_map(unquote(kw)) do
@@ -73,7 +68,7 @@ defmodule Membrane.Core.StateDispatcher do
   end
 
   defmacro element(state, kw) do
-    module = module_of(:element)
+    module = component_to_module(:element)
 
     quote do
       unquote(module).state(unquote(state), unquote(kw))
@@ -83,7 +78,7 @@ defmodule Membrane.Core.StateDispatcher do
   (@components -- [:element])
   |> Enum.map(fn component ->
     defmacro unquote(component)(kw) do
-      module = module_of(unquote(component))
+      module = component_to_module(unquote(component))
 
       quote do
         unquote(module).state(unquote(kw))
@@ -91,7 +86,7 @@ defmodule Membrane.Core.StateDispatcher do
     end
 
     defmacro unquote(component)(state, kw) do
-      module = module_of(unquote(component))
+      module = component_to_module(unquote(component))
 
       quote do
         unquote(module).state(unquote(state), unquote(kw))
@@ -106,7 +101,7 @@ defmodule Membrane.Core.StateDispatcher do
   end)
 
   defp spec_op(component, state, args) when component in @components do
-    module = module_of(component)
+    module = component_to_module(component)
 
     quote do
       unquote(module).state(unquote(state), unquote(args))
@@ -118,7 +113,7 @@ defmodule Membrane.Core.StateDispatcher do
       group
       |> restrict()
       |> Enum.flat_map(fn component ->
-        module = module_of(component)
+        module = component_to_module(component)
 
         quote do
           unquote(module) -> unquote(module).state(unquote(state), unquote(args))
@@ -131,4 +126,12 @@ defmodule Membrane.Core.StateDispatcher do
       end
     end
   end
+
+  defp component_to_module(component),
+    do:
+      Module.concat([
+        Membrane.Core,
+        component |> Atom.to_string() |> String.capitalize() |> String.to_atom(),
+        State
+      ])
 end

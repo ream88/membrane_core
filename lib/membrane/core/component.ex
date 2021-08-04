@@ -2,24 +2,28 @@ defmodule Membrane.Core.Component do
   @moduledoc false
   use Membrane.Core.StateDispatcher
 
-  alias Membrane.Core.StateDispatcher
-
   @type state_t ::
           Membrane.Core.Pipeline.State.t()
           | Membrane.Core.Bin.State.t()
           | Membrane.Core.Element.State.t()
 
   @spec action_handler(state_t) :: module
-  [:pipeline, :bin, :element]
+  [Pipeline, Bin, Element]
   |> Enum.map(fn component ->
-    def action_handler(unquote(StateDispatcher.module_of(component)).state()),
-      do: handler(unquote(component))
+    def action_handler(unquote(Module.concat([Membrane.Core, component, State])).state()),
+      do: unquote(Module.concat([Membrane.Core, component, ActionHandler]))
   end)
 
   defmacro callback_context_generator(restrict, module, state, args \\ []) do
     module = Macro.expand(module, __ENV__)
 
-    restrict = StateDispatcher.restrict(restrict)
+    restrict =
+      case restrict do
+        :parent -> [Pipeline, Bin]
+        :child -> [Bin, Element]
+        :any -> [Pipeline, Bin, Element]
+        restrict -> restrict
+      end
 
     requires =
       restrict
@@ -33,7 +37,7 @@ defmodule Membrane.Core.Component do
       restrict
       |> Enum.flat_map(fn component ->
         quote do
-          unquote(StateDispatcher.module_of(component)) ->
+          unquote(state(component)) ->
             &unquote(context(component, module)).from_state(&1, unquote(args))
         end
       end)
@@ -41,26 +45,14 @@ defmodule Membrane.Core.Component do
     quote do
       unquote_splicing(requires)
 
-      case StateDispatcher.module_of(unquote(state)) do
+      case Membrane.Core.StateDispatcher.module_of(unquote(state)) do
         unquote(clauses)
       end
     end
   end
 
-  defp handler(component),
-    do:
-      Module.concat([
-        Membrane.Core,
-        component |> Atom.to_string() |> String.capitalize(),
-        ActionHandler
-      ])
-
   defp context(component, module),
-    do:
-      Module.concat([
-        Membrane,
-        component |> Atom.to_string() |> String.capitalize(),
-        CallbackContext,
-        module
-      ])
+    do: Module.concat([Membrane, component, CallbackContext, module])
+
+  defp state(component), do: Module.concat([Membrane.Core, component, State])
 end
