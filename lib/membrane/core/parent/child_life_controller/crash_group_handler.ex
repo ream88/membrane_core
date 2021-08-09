@@ -17,28 +17,31 @@ defmodule Membrane.Core.Parent.ChildLifeController.CrashGroupHandler do
   def add_crash_group(group_spec, children_names, children_pids, state) do
     {group_name, mode} = group_spec
 
+    default = %CrashGroup{
+      name: group_name,
+      mode: mode,
+      members: children_names,
+      alive_members_pids: children_pids
+    }
+
     state =
       state
       |> StateDispatcher.get_pipeline(:crash_groups)
-      |> Map.update!(group_name, fn
-        %CrashGroup{
-          members: current_children_names,
-          alive_members_pids: current_alive_members
-        } = group ->
+      |> Map.update(
+        group_name,
+        default,
+        fn
           %CrashGroup{
-            group
-            | members: current_children_names ++ children_names,
-              alive_members_pids: current_alive_members ++ children_pids
-          }
-
-        nil ->
-          %CrashGroup{
-            name: group_name,
-            mode: mode,
-            members: children_names,
-            alive_members_pids: children_pids
-          }
-      end)
+            members: current_children_names,
+            alive_members_pids: current_alive_members
+          } = group ->
+            %CrashGroup{
+              group
+              | members: current_children_names ++ children_names,
+                alive_members_pids: current_alive_members ++ children_pids
+            }
+        end
+      )
       |> then(&StateDispatcher.update_pipeline(state, crash_groups: &1))
 
     {:ok, state}
