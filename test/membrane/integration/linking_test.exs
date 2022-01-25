@@ -4,54 +4,62 @@ defmodule Membrane.Integration.LinkingTest do
   import Membrane.Testing.Assertions
   import Membrane.ParentSpec
 
-  alias Membrane.{Tee, Testing}
-
-  defmodule ImmediatelyCrashingFilter do
-    use Membrane.Sink
-
-    def_input_pad :input, demand_unit: :buffers, caps: :any, availability: :on_request
-
-    @impl true
-    def handle_init(_opts) do
-      {:ok, %{pads: []}}
-    end
-
-    @impl true
-    def handle_pad_added(pad, _ctx, state) do
-      IO.inspect(pad, label: "$$$")
-
-      {:ok, Map.update!(state, :pads, &([pad | &1]))}
-    end
-
-    @impl true
-    def handle_prepared_to_playing(_ctx, state) do
-      actions = Enum.map(state.pads, &({:demand, {&1, 1}}))
-      {{:ok, actions}, state}
-    end
-
-    @impl true
-    def handle_write(pad, buffer, _ctx, state) do
-      IO.inspect(buffer)
-
-      {{:ok, demand: {pad, 1}}, state}
-    end
-  end
+  alias Membrane.Support.LinkingTest
+  alias Membrane.Testing
 
   test "test" do
-    {:ok, pipeline} = Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-      elements: [
-        source: %Testing.Source{output: ['a', 'b', 'c']},
-        tee: Tee.Master,
-        sink: Testing.Sink
-      ],
-      links: [link(:source) |> to(:tee) |> to(:sink)]
-    })
-    # Testing.Pipeline.execute_actions(pipeline)
+    {:ok, pipeline} =
+      Testing.Pipeline.start_link(%Testing.Pipeline.Options{
+        module: Membrane.Support.LinkingTest.Pipeline,
+        custom_args: %{testing_pid: self()}
+      })
+
+    elements = [
+      source: %Testing.Source{output: ['a', 'b', 'c']},
+      tee: LinkingTest.Tee,
+      sink_1: Testing.Sink
+    ]
+
+    sink_2 = [
+      sink_2: Testing.Sink
+    ]
+
+    elements_spec = %Membrane.ParentSpec{
+      children: elements,
+      crash_group: {:group_1, :temporary}
+    }
+
+    sink_2_spec = %Membrane.ParentSpec{
+      children: sink_2,
+      crash_group: {:group_2, :temporary}
+    }
+
+    links_spec = %Membrane.ParentSpec{
+      links: [
+        link(:source) |> to(:tee) |> to(:sink_1),
+        link(:tee) |> to(:sink_2)
+      ]
+    }
+
+    send(pipeline, {:spec, elements_spec})
+    assert_receive(:spec_started)
+    send(pipeline, {:spec, sink_2_spec})
+    assert_receive(:spec_started)
+
+    Process.exit(get_pid(:sink_2, pipeline), :kill)
+    send(pipeline, {:spec, links_spec})
+    assert_receive(:spec_started)
+
     Testing.Pipeline.play(pipeline)
     assert_pipeline_playback_changed(pipeline, _from, :playing)
-    assert_sink_buffer(pipeline, :sink, %Membrane.Buffer{payload: 'a'})
-    assert_sink_buffer(pipeline, :sink, %Membrane.Buffer{payload: 'b'})
-    assert_sink_buffer(pipeline, :sink, %Membrane.Buffer{payload: 'c'})
+    assert_sink_buffer(pipeline, :sink_1, %Membrane.Buffer{payload: 'a'})
+    assert_sink_buffer(pipeline, :sink_1, %Membrane.Buffer{payload: 'b'})
+    assert_sink_buffer(pipeline, :sink_1, %Membrane.Buffer{payload: 'c'})
     Membrane.Pipeline.stop_and_terminate(pipeline, blocking?: true)
+  end
+
+  defp get_pid(ref, parent_pid) do
+    state = :sys.get_state(parent_pid)
+    state.children[ref].pid
   end
 end
