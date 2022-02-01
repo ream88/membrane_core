@@ -52,19 +52,19 @@ defmodule Membrane.Integration.LinkingTest do
     %{pipeline: pipeline}
   end
 
-  test "test", %{
+  test "one of element dies before the linking", %{
     pipeline: pipeline,
     elements_spec: elements_spec,
     sink_2_spec: sink_2_spec,
     links_spec: links_spec
   } do
-    send(pipeline, {:start_spec, elements_spec})
+    send(pipeline, {:start_spec, %{spec: elements_spec}})
     assert_receive(:spec_started)
-    send(pipeline, {:start_spec, sink_2_spec})
+    send(pipeline, {:start_spec, %{spec: sink_2_spec}})
     assert_receive(:spec_started)
 
     Process.exit(get_pid(:sink_2, pipeline), :kill)
-    send(pipeline, {:start_spec, links_spec})
+    send(pipeline, {:start_spec, %{spec: links_spec}})
     assert_receive(:spec_started)
 
     Testing.Pipeline.play(pipeline)
@@ -74,18 +74,18 @@ defmodule Membrane.Integration.LinkingTest do
     assert_sink_buffer(pipeline, :sink_1, %Membrane.Buffer{payload: 'c'})
   end
 
-  test "test2", %{
+  test "one of element to be linked dies during the linking", %{
     pipeline: pipeline,
     elements_spec: elements_spec,
     sink_2_spec: sink_2_spec,
     links_spec: links_spec
   } do
-    send(pipeline, {:start_spec, elements_spec})
+    send(pipeline, {:start_spec, %{spec: elements_spec}})
     assert_receive(:spec_started)
-    send(pipeline, {:start_spec, sink_2_spec})
+    send(pipeline, {:start_spec, %{spec: sink_2_spec}})
     assert_receive(:spec_started)
 
-    send(pipeline, {:start_spec_and_kill, links_spec, :sink_2})
+    send(pipeline, {:start_spec_and_kill, %{spec: links_spec, children_to_kill: [:sink_2]}})
     assert_receive(:spec_started)
 
     Testing.Pipeline.play(pipeline)

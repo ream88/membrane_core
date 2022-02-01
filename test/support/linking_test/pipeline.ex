@@ -8,15 +8,17 @@ defmodule Membrane.Support.LinkingTest.Pipeline do
   end
 
   @impl true
-  def handle_other({:start_spec, spec}, _ctx, state) do
+  def handle_other({:start_spec, %{spec: spec}}, _ctx, state) do
     {{:ok, spec: spec}, state}
   end
 
   @impl true
-  def handle_other({:start_spec_and_kill, spec, element_name}, ctx, state) do
-    pid = ctx.children[element_name].pid
-    IO.inspect(pid)
-    Process.exit(pid, :kill)
+  def handle_other(
+        {:start_spec_and_kill, %{spec: spec, children_to_kill: children_to_kill}},
+        ctx,
+        state
+      ) do
+   Enum.each(children_to_kill, &Process.exit(ctx.children[&1].pid, :kill))
     {{:ok, spec: spec}, state}
   end
 
