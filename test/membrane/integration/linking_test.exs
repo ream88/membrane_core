@@ -52,6 +52,39 @@ defmodule Membrane.Integration.LinkingTest do
     %{pipeline: pipeline}
   end
 
+  test "test", %{pipeline: pipeline} do
+    spec_1 = %Membrane.ParentSpec{
+      children: [
+        source: %Testing.Source{output: ['a', 'b', 'c']}
+      ],
+      crash_group: {:group_1, :temporary}
+    }
+
+    spec_2 = %Membrane.ParentSpec{
+      children: [
+        sink: Testing.Sink
+      ],
+      crash_group: {:group_2, :temporary}
+    }
+
+    links_spec = %Membrane.ParentSpec{
+      links: [
+        link(:source) |> to(:sink)
+      ]
+    }
+
+    send(pipeline, {:start_spec, %{spec: spec_1}})
+    assert_receive(:spec_started)
+    send(pipeline, {:start_spec, %{spec: spec_2}})
+    assert_receive(:spec_started)
+
+    send(pipeline, {:start_spec_and_kill, %{spec: links_spec, children_to_kill: [:sink]}})
+    assert_receive(:spec_started)
+
+    Testing.Pipeline.play(pipeline)
+    assert_pipeline_playback_changed(pipeline, :stopped, :prepared)
+  end
+
   test "one of element dies before the linking", %{
     pipeline: pipeline,
     elements_spec: elements_spec,
