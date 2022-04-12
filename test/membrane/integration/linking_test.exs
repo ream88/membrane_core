@@ -45,6 +45,14 @@ defmodule Membrane.Integration.LinkingTest do
     def handle_pad_removed(_pad, _ctx, _state) do
       {{:ok, notify: :handle_pad_removed}, %{}}
     end
+
+    @impl true
+    def handle_other(:hang, _ctx, _state) do
+      receive do
+        :not_existing_message ->
+          :ok
+      end
+    end
   end
 
   defmodule Pipeline do
@@ -85,7 +93,7 @@ defmodule Membrane.Integration.LinkingTest do
 
   setup do
     {:ok, pipeline} =
-      Testing.Pipeline.start_link(%Testing.Pipeline.Options{
+      Testing.Pipeline.start(%Testing.Pipeline.Options{
         module: Pipeline,
         custom_args: %{testing_pid: self()}
       })
@@ -269,6 +277,50 @@ defmodule Membrane.Integration.LinkingTest do
     assert_receive(:spec_started)
     Testing.Pipeline.play(pipeline)
     assert_pipeline_playback_changed(pipeline, _, :playing)
+  end
+
+  test "test", %{pipeline: pipeline} do
+    sink_and_bin_spec = %Membrane.ParentSpec{
+      children: [
+        bin: %Bin{child: %Testing.Source{output: ['a', 'b', 'c']}},
+        sink: Testing.Sink
+      ],
+      crash_group: {:group_1, :temporary}
+    }
+
+    sink_and_source_spec = %Membrane.ParentSpec{
+      children: [
+        sink2: Testing.Sink,
+        source2: %Testing.Source{output: ['a', 'b', 'c']}
+      ],
+      links: [
+        link(:source2) |> to(:sink2)
+      ],
+      crash_group: {:group_2, :temporary}
+    }
+
+    links_spec = %Membrane.ParentSpec{
+      links: [
+        link(:bin) |> to(:sink)
+      ]
+    }
+
+    send(pipeline, {:start_spec, %{spec: sink_and_bin_spec}})
+    assert_receive(:spec_started)
+    send(pipeline, {:start_spec, %{spec: sink_and_source_spec}})
+    assert_receive(:spec_started)
+    bin_pid = get_pid(:bin, pipeline)
+    send(bin_pid, :hang)
+    send(pipeline, {:start_spec, %{spec: links_spec}})
+    assert_receive(:spec_started)
+
+    # 10s is set because linking timeout is 5s
+    assert_pipeline_crash_group_down(pipeline, :group_1, 10_000)
+
+    Testing.Pipeline.play(pipeline)
+    assert_sink_buffer(pipeline, :sink2, %Buffer{payload: 'a'})
+    assert_sink_buffer(pipeline, :sink2, %Buffer{payload: 'b'})
+    assert_sink_buffer(pipeline, :sink2, %Buffer{payload: 'c'})
   end
 
   defp get_pid(ref, parent_pid) do

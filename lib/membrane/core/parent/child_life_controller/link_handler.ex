@@ -24,7 +24,7 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
     LinkParser
   }
 
-  alias Membrane.Core.Parent.ChildLifeController.StartupHandler
+  alias Membrane.Core.Parent.ChildLifeController.{CrashGroupHandler, StartupHandler}
   alias Membrane.Core.Parent.Link.Endpoint
   alias Membrane.LinkError
   alias Membrane.Pad
@@ -85,8 +85,19 @@ defmodule Membrane.Core.Parent.ChildLifeController.LinkHandler do
     {spec_data, state} = pop_in(state, [:pending_specs, spec_ref])
 
     unless spec_data == nil or spec_data.status == :linked do
-      raise LinkError,
-            "Spec #{inspect(spec_ref)} linking took too long, spec_data: #{inspect(spec_data, pretty: true)}"
+      pids_of_affected_elements =
+        Enum.flat_map(spec_data.links, fn {_k, v} -> [v.link.from.pid, v.link.to.pid] end)
+
+      for pid <- pids_of_affected_elements do
+        case CrashGroupHandler.get_group_by_member_pid(pid, state) do
+          {:ok, _group_name} ->
+            Process.exit(pid, :kill)
+
+          {:error, :not_member} ->
+            raise LinkError,
+                  "Spec #{inspect(spec_ref)} linking took too long, spec_data: #{inspect(spec_data, pretty: true)}"
+        end
+      end
     end
 
     state
