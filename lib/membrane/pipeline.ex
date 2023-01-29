@@ -317,6 +317,10 @@ defmodule Membrane.Pipeline do
   def prepare(pid),
     do: Membrane.Core.PlaybackHandler.request_playback_state_change(pid, :prepared)
 
+  def get_stats(pipeline) do
+    Membrane.Core.Message.call(pipeline, :get_stats)
+  end
+
   @doc """
   Changes playback state to `:stopped`.
   """

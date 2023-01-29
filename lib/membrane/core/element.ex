@@ -188,6 +188,21 @@ defmodule Membrane.Core.Element do
     {:noreply, state}
   end
 
+  defp do_handle_info(Message.new(:get_stats, [from, ref]), state) do
+    avg_proc_time =
+      if state.buffers_recv == 0, do: 0, else: state.buffers_proc_time / state.buffers_recv
+
+    stats = %{
+      buffers_sent: state.buffers_sent,
+      buffers_recv: state.buffers_recv,
+      avg_proc_time: avg_proc_time
+    }
+
+    send(from, {:get_stats, ref, stats})
+
+    {:noreply, state}
+  end
+
   defp do_handle_info({:membrane_clock_ratio, clock, ratio}, state) do
     state = TimerController.handle_clock_update(clock, ratio, state)
     {:noreply, state}

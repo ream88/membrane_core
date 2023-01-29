@@ -114,6 +114,20 @@ defmodule Membrane.Core.Pipeline do
   end
 
   @impl GenServer
+  def handle_call(Message.new(:get_stats), _from, state) do
+    stats =
+      state.children
+      |> Enum.map(fn {child_name, %{pid: child_pid}} ->
+        Task.async(Membrane.Core.GetStatsTask, :run, [child_pid, child_name])
+      end)
+      |> Task.await_many(1000)
+      |> Enum.reject(fn stats -> stats == nil end)
+      |> Map.new()
+
+    {:reply, stats, state}
+  end
+
+  @impl GenServer
   def terminate(reason, state) do
     Telemetry.report_terminate(:pipeline)
     :ok = state.module.handle_shutdown(reason, state.internal_state)

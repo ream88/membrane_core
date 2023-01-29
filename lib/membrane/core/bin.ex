@@ -190,6 +190,21 @@ defmodule Membrane.Core.Bin do
     {:noreply, state}
   end
 
+  def handle_info(Message.new(:get_stats, [from, ref]), state) do
+    stats =
+      state.children
+      |> Enum.map(fn {child_name, %{pid: child_pid}} ->
+        Task.async(Membrane.Core.GetStatsTask, :run, [child_pid, child_name])
+      end)
+      |> Task.await_many(1000)
+      |> Enum.reject(fn stats -> stats == nil end)
+      |> Map.new()
+
+    send(from, {:get_stats, ref, stats})
+
+    {:noreply, state}
+  end
+
   @impl GenServer
   def handle_info({:membrane_clock_ratio, clock, ratio}, state) do
     state = TimerController.handle_clock_update(clock, ratio, state)
