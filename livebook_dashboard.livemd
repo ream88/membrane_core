@@ -2,6 +2,56 @@
 
 ## Section
 
+```elixir
+alias VegaLite, as: Vl
+
+start_time = System.monotonic_time()
+
+Stream.iterate(%{}, fn charts ->
+  measurements = :ets.tab2list(:membrane_core_meas)
+
+  measurements
+  |> Enum.group_by(fn {{metric, _path, _metric_id}, _value} -> metric end)
+  |> Enum.sort()
+  |> Enum.take(1)
+  |> Enum.reduce(charts, fn {metric, data}, charts ->
+    charts =
+      Map.put_new_lazy(charts, metric, fn ->
+        IO.inspect(metric)
+
+        Vl.new(width: 400, height: 800)
+        |> Vl.mark(:point)
+        |> Vl.encode_field(:y, "element", type: :ordinal)
+        |> Vl.encode_field(:x, "value",
+          type: :quantitative,
+          scale: [domain: [-5000, 40_000]],
+          header: [label_orient: :bottom]
+        )
+        |> Kino.VegaLite.new()
+        |> Kino.render()
+      end)
+
+    Kino.VegaLite.clear(charts[metric])
+
+    data
+    |> Enum.sort()
+    |> Enum.each(fn {{_metric, path, metric_id}, value} ->
+      Kino.VegaLite.push(
+        charts[metric],
+        %{element: "#{inspect(path)} for #{inspect(metric_id)}", value: value},
+        window: 1
+      )
+    end)
+
+    # Kino.VegaLite.push_many(charts[metric], data_points, window: length(data_points))
+
+    charts
+  end)
+end)
+|> Stream.each(fn _ -> Process.sleep(1000) end)
+|> Stream.run()
+```
+
 ## Section
 
 ````elixir
@@ -9,7 +59,7 @@ alias VegaLite, as: Vl
 
 start_time = System.monotonic_time()
 
-create_chart = fn {path, meas} ->
+create_chart = fn {metric, path, metric_id} ->
   Kino.render(
     Kino.Markdown.new("""
     ## Element #{List.last(path)}
@@ -19,7 +69,7 @@ create_chart = fn {path, meas} ->
     """)
   )
 
-  Kino.render(Kino.Markdown.new("### Measurement: #{inspect(meas)}"))
+  Kino.render(Kino.Markdown.new("### Metric: #{metric} for #{inspect(metric_id)}"))
 
   Vl.new(width: 800, height: 400)
   |> Vl.mark(:line)
@@ -33,11 +83,64 @@ Stream.iterate(%{}, fn charts ->
   measurements = :ets.tab2list(:membrane_core_meas)
 
   measurements
+  |> Enum.filter(fn {{_metric, path, _metric_id}, _value} -> List.last(path) == ":ice_funnel" end)
   |> Enum.sort()
-  |> Enum.reduce(charts, fn {name, value}, charts ->
-    charts = Map.put_new_lazy(charts, name, fn -> create_chart.(name) end)
+  |> Enum.reduce(charts, fn {id, value}, charts ->
+    charts = Map.put_new_lazy(charts, id, fn -> create_chart.(id) end)
 
-    Kino.VegaLite.push(charts[name], %{
+    Kino.VegaLite.push(
+      charts[id],
+      %{
+        x: System.convert_time_unit(System.monotonic_time() - start_time, :native, :second),
+        y: value
+      },
+      window: 60
+    )
+
+    charts
+  end)
+end)
+|> Stream.each(fn _ -> Process.sleep(1000) end)
+|> Stream.run()
+````
+
+## Section
+
+````elixir
+alias VegaLite, as: Vl
+
+start_time = System.monotonic_time()
+
+create_chart = fn {metric, path, metric_id} ->
+  Kino.render(
+    Kino.Markdown.new("""
+    ## Element #{List.last(path)}
+    ```
+    #{Enum.join(path, "\n")}
+    ```
+    """)
+  )
+
+  Kino.render(Kino.Markdown.new("### Metric: #{metric} for #{inspect(metric_id)}"))
+
+  Vl.new(width: 800, height: 400)
+  |> Vl.mark(:line)
+  |> Vl.encode_field(:x, "x", type: :quantitative)
+  |> Vl.encode_field(:y, "y", type: :quantitative)
+  |> Kino.VegaLite.new()
+  |> Kino.render()
+end
+
+Stream.iterate(%{}, fn charts ->
+  measurements = :ets.tab2list(:membrane_core_meas)
+
+  measurements
+  |> Enum.filter(fn {{_metric, path, _metric_id}, _value} -> List.last(path) == ":ice_funnel" end)
+  |> Enum.sort()
+  |> Enum.reduce(charts, fn {id, value}, charts ->
+    charts = Map.put_new_lazy(charts, id, fn -> create_chart.(id) end)
+
+    Kino.VegaLite.push(charts[id], %{
       x: System.convert_time_unit(System.monotonic_time() - start_time, :native, :second),
       y: value
     })

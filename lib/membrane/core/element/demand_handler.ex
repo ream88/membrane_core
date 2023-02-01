@@ -109,7 +109,7 @@ defmodule Membrane.Core.Element.DemandHandler do
 
     :ets.insert(
       :membrane_core_meas,
-      {{Membrane.ComponentPath.get(), {:output_demand, pad_ref}}, demand - buf_size}
+      {{:output_demand, Membrane.ComponentPath.get(), pad_ref}, demand - buf_size}
     )
 
     PadModel.set_data!(state, pad_ref, :demand, demand - buf_size)

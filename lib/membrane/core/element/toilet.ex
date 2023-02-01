@@ -110,7 +110,7 @@ defmodule Membrane.Core.Element.Toilet do
         amount + unrinsed_buffers_size}}
     else
       size = DistributedCounter.add_get(counter, amount + unrinsed_buffers_size)
-      :ets.insert(:membrane_core_meas, {{Membrane.ComponentPath.get(), {:toilet, pad}}, size})
+      :ets.insert(:membrane_core_meas, {{:toilet, Membrane.ComponentPath.get(), pad}, size})
 
       if size > capacity do
         overflow(size, capacity, responsible_process)

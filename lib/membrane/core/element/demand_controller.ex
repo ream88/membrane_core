@@ -31,7 +31,7 @@ defmodule Membrane.Core.Element.DemandController do
 
     :ets.insert(
       :membrane_core_meas,
-      {{Membrane.ComponentPath.get(), {:output_demand, pad_ref}}, old_demand + size}
+      {{:output_demand, Membrane.ComponentPath.get(), pad_ref}, old_demand + size}
     )
 
     if old_demand <= 0 do
