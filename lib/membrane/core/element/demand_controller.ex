@@ -101,6 +101,11 @@ defmodule Membrane.Core.Element.DemandController do
           Message.send(pid, :demand, demand_request_size - demand, for_pad: other_ref)
         end
 
+        :ets.insert(
+          :membrane_core_meas,
+          {{:input_demand, Membrane.ComponentPath.get(), pad_ref}, demand_request_size}
+        )
+
         demand_request_size
       else
         Membrane.Logger.debug_verbose(

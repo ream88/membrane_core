@@ -111,6 +111,11 @@ defmodule Membrane.Core.Element.InputQueue do
 
     %__MODULE__{size: size} = input_queue = do_store_buffers(input_queue, v)
 
+    :ets.insert(
+      :membrane_core_meas,
+      {{:input_queue_size, Membrane.ComponentPath.get(), input_queue.log_tag}, size}
+    )
+
     Telemetry.report_metric(:store, size, input_queue.log_tag)
 
     input_queue
@@ -151,6 +156,12 @@ defmodule Membrane.Core.Element.InputQueue do
       when count >= 0 do
     "Taking #{inspect(count)} buffers" |> mk_log(input_queue) |> Membrane.Logger.debug_verbose()
     {out, %__MODULE__{size: new_size} = input_queue} = do_take(input_queue, count)
+
+    :ets.insert(
+      :membrane_core_meas,
+      {{:input_queue_size, Membrane.ComponentPath.get(), input_queue.log_tag}, new_size}
+    )
+
     input_queue = send_demands(input_queue, demand_pid, demand_pad)
     Telemetry.report_metric(:take_and_demand, new_size, input_queue.log_tag)
     {out, input_queue}
