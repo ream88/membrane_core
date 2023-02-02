@@ -308,6 +308,16 @@ defmodule Membrane.Core.Element.ActionHandler do
         |> PadModel.set_data!(pad_ref, :start_of_stream?, true)
 
       Message.send(pid, :buffer, buffers, for_pad: other_ref)
+
+
+      state = %{state | buffers_sent: state.buffers_sent + length(buffers)}
+
+
+      :ets.insert(
+        :membrane_core_meas,
+        {{:buffers_sent, Membrane.ComponentPath.get(), pad_ref}, state.buffers_sent}
+      )
+
       state
     else
       %{direction: :input} ->

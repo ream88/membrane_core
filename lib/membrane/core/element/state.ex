@@ -32,7 +32,8 @@ defmodule Membrane.Core.Element.State do
             latency: non_neg_integer(),
             stream_sync: Sync.t(),
             clock: Clock.t() | nil
-          }
+          },
+          buffers_sent: non_neg_integer(),
         }
 
   defstruct [
@@ -48,7 +49,8 @@ defmodule Membrane.Core.Element.State do
     :supplying_demand?,
     :delayed_demands,
     :synchronization,
-    :demand_size
+    :demand_size,
+    buffers_sent: 0
   ]
 
   @doc """
