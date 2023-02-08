@@ -1,13 +1,14 @@
-defmodule Membrane.Core.Application do
+defmodule Membrane.Application do
+  @moduledoc false
   use Application
 
+  @impl true
   def start(_type, _args) do
-    Membrane.Core.Metrics.init()
-
     children = [
       {Registry, keys: :duplicate, name: Membrane.Core.Registry.get_registry_name()}
     ]
 
-    Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
+    opts = [strategy: :one_for_one]
+    Supervisor.start_link(children, opts)
   end
 end
