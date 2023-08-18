@@ -24,6 +24,8 @@ defmodule Membrane.Mixfile do
         "coveralls.html": :test
       ],
       test_coverage: [tool: ExCoveralls, test_task: "test"],
+      consolidate_protocols: false,
+      compilers: [:erlang, :tria, :app],
       deps: deps()
     ]
   end
@@ -138,6 +140,7 @@ defmodule Membrane.Mixfile do
 
   defp deps do
     [
+      {:tria, github: "hissssst/tria"},
       {:qex, "~> 0.3"},
       {:telemetry, "~> 1.0"},
       {:bunch, "~> 1.6"},

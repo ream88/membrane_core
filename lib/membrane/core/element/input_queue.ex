@@ -314,7 +314,7 @@ defmodule Membrane.Core.Element.InputQueue do
   defp maybe_increase_atomic_demand(%__MODULE__{} = input_queue), do: input_queue
 
   # This function may be unused if particular logs are pruned
-  @dialyzer {:no_unused, mk_log: 2}
+  # @dialyzer {:no_unused, mk_log: 2}
   defp mk_log(message, input_queue) do
     %__MODULE__{
       log_tag: log_tag,

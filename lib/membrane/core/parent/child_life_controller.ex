@@ -181,7 +181,7 @@ defmodule Membrane.Core.Parent.ChildLifeController do
           module when is_atom(module) -> module
         end
 
-      child_module.membrane_pads()
+      apply(child_module, :membrane_pads, [])
       |> Keyword.values()
       |> Enum.filter(&(&1.availability == :always))
       |> Enum.map(&{child_name, &1.name})
