@@ -2,28 +2,19 @@ defmodule Membrane.Core.Parent.ClockHandler do
   @moduledoc false
 
   alias Membrane.{Clock, Core, ParentError}
-  alias Membrane.Core.Parent.ChildEntryParser
 
-  @spec choose_clock(
-          [ChildEntryParser.raw_child_entry()],
-          Membrane.Child.name() | nil,
-          Core.Parent.state()
-        ) ::
+  @spec choose_clock(Membrane.Child.name() | Membrane.Parent, Core.Parent.state()) ::
           Core.Parent.state() | no_return
-  def choose_clock(_children, nil, state) do
-    state
-  end
-
-  def choose_clock(children, provider, state) do
+  def choose_clock(provider, state) do
     %{synchronization: synchronization} = state
 
     components =
       case state do
-        %Core.Bin.State{} -> [%{name: Membrane.Parent, clock: synchronization.parent_clock}]
-        %Core.Pipeline.State{} -> []
+        %Core.Bin.State{} -> %{Membrane.Parent => %{clock: synchronization.parent_clock}}
+        %Core.Pipeline.State{} -> %{}
       end
 
-    components = components ++ children
+    components = Map.merge(state.children, components)
     clock = get_clock_from_provider(components, provider)
     set_clock_provider(clock, state)
   end
@@ -38,9 +29,7 @@ defmodule Membrane.Core.Parent.ClockHandler do
   end
 
   defp get_clock_from_provider(components, provider) do
-    components
-    |> Enum.find(&(&1.name == provider))
-    |> case do
+    case Map.get(components, provider) do
       nil ->
         raise ParentError, "Unknown clock provider: #{inspect(provider)}"
 

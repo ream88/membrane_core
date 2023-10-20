@@ -260,7 +260,18 @@ defmodule Membrane.Core.Parent.ChildLifeController do
       )
 
     :ok = StartupUtils.maybe_activate_syncs(syncs, state)
-    state = ClockHandler.choose_clock(children, options.clock_provider, state)
+
+    state =
+      if options.clock_provider do
+        Membrane.Logger.warning(
+          "The clock_provider option is deprecated. Use the `clock_provider` action instead."
+        )
+
+        ClockHandler.choose_clock(options.clock_provider, state)
+      else
+        state
+      end
+
     state = %{state | children: Map.merge(state.children, Map.new(children, &{&1.name, &1}))}
 
     children_names = children |> Enum.map(& &1.name)

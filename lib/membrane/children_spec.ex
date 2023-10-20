@@ -154,9 +154,8 @@ defmodule Membrane.ChildrenSpec do
 
   ### Clock provider
 
-  A clock provider is an element that exports a clock that should be used as the pipeline
-  clock. The pipeline clock is the default clock used by elements' timers.
-  For more information see `Membrane.Element.Base.def_clock/1`.
+  Setting the clock provider via the spec is deprecated. Please use `t:Membrane.Pipeline.Action.clock_provider/0`
+  or `t:Membrane.Bin.Action.clock_provider/0`.
 
   ### Children groups
   Children groups allow aggregating the spawned children into easily identifiable groups.
@@ -314,7 +313,6 @@ defmodule Membrane.ChildrenSpec do
           group: Child.group(),
           crash_group_mode: crash_group_mode(),
           stream_sync: :sinks | [[Child.name()]],
-          clock_provider: Child.name() | nil,
           node: node() | nil,
           log_metadata: Keyword.t()
         ]

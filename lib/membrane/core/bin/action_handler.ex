@@ -6,6 +6,7 @@ defmodule Membrane.Core.Bin.ActionHandler do
   alias Membrane.Core
   alias Membrane.Core.Bin.State
   alias Membrane.Core.{Message, Parent, TimerController}
+  alias Membrane.Core.Parent.ClockHandler
 
   require Membrane.Logger
   require Message
@@ -83,6 +84,16 @@ defmodule Membrane.Core.Bin.ActionHandler do
   @impl CallbackHandler
   def handle_action({:stop_timer, id}, _cb, _params, state) do
     TimerController.stop_timer(id, state)
+  end
+
+  @impl CallbackHandler
+  def handle_action({:clock_provider, child}, _cb, _params, state) do
+    ClockHandler.choose_clock(child, state)
+  end
+
+  @impl CallbackHandler
+  def handle_action(:reset_clock_provider, _cb, _params, state) do
+    ClockHandler.reset_clock(state)
   end
 
   @impl CallbackHandler

@@ -15,16 +15,15 @@ defmodule Membrane.Integration.SyncTest.TickingPace do
     actual_report_interval = 100
     reported_interval = 300
 
-    spec = {
+    spec =
       child(:source, %Sync.Source{
         tick_interval: tick_interval |> Time.milliseconds(),
         test_process: self()
       })
-      |> child(:sink, Sync.Sink),
-      clock_provider: :sink
-    }
+      |> child(:sink, Sync.Sink)
 
-    pipeline = Testing.Pipeline.start_link_supervised!(spec: spec)
+    pipeline = Testing.Pipeline.start_link_supervised!()
+    Testing.Pipeline.execute_actions(pipeline, spec: spec, clock_provider: :sink)
 
     %{synchronization: %{clock_provider: %{clock: original_clock, provider: :sink}}} =
       :sys.get_state(pipeline)

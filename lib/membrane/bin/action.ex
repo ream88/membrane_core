@@ -107,6 +107,23 @@ defmodule Membrane.Bin.Action do
   @type stop_timer :: {:stop_timer, timer_id :: any}
 
   @typedoc """
+  Sets the component that will provide the clock for the bin.
+
+  The component can be either `Membrane.Parent` or a child name.
+  The bin's clock is the default clock used by its child elements' timers.
+  The clock is automatically reset to the default, OS clock, upon the
+  element termination or returning `t:reset_clock_provider/0`.
+
+  See `Membrane.Element.Base.def_clock/1` and `Membrane.Bin.def_clock/1` for more details.
+  """
+  @type clock_provider :: {:clock_provider, Child.name() | Membrane.Parent}
+
+  @typedoc """
+  Resets the clock provider, set by `t:clock_provider/0`.
+  """
+  @type reset_clock_provider :: :reset_clock_provider
+
+  @typedoc """
   Terminates bin with given reason.
 
   Termination reason follows the OTP semantics:
@@ -138,5 +155,7 @@ defmodule Membrane.Bin.Action do
           | start_timer
           | timer_interval
           | stop_timer
+          | clock_provider
+          | reset_clock_provider
           | terminate
 end

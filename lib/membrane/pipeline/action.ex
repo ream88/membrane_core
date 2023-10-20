@@ -110,6 +110,22 @@ defmodule Membrane.Pipeline.Action do
   @type reply_to :: {:reply_to, {GenServer.from(), message :: any}}
 
   @typedoc """
+  Sets the child that will provide the clock for the pipeline.
+
+  The pipeline clock is the default clock used by its child elements' timers.
+  The clock is automatically reset to the default, OS clock, upon the
+  element termination or returning `t:reset_clock_provider/0`.
+
+  See `Membrane.Element.Base.def_clock/1` and `Membrane.Bin.def_clock/1` for more details.
+  """
+  @type clock_provider :: {:clock_provider, Child.name()}
+
+  @typedoc """
+  Resets the clock provider, set by `t:clock_provider/0`.
+  """
+  @type reset_clock_provider :: :reset_clock_provider
+
+  @typedoc """
   Terminates the pipeline with given reason.
 
   Termination reason follows the OTP semantics:

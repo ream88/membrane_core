@@ -5,13 +5,8 @@ defmodule Membrane.Core.Pipeline.ActionHandler do
   alias Membrane.ActionError
   alias Membrane.Core
   alias Membrane.Core.{Parent, TimerController}
-  alias Membrane.Core.Parent.LifecycleController
+  alias Membrane.Core.Parent.{ClockHandler, LifecycleController}
   alias Membrane.Core.Pipeline.State
-
-  @impl CallbackHandler
-  def handle_action({action, _args}, :handle_init, _params, _state) when action != :spec do
-    raise ActionError, action: action, reason: {:invalid_callback, :handle_init}
-  end
 
   @impl CallbackHandler
   def handle_action({:spec, args}, _cb, _params, %State{terminating?: true}) do
@@ -89,6 +84,16 @@ defmodule Membrane.Core.Pipeline.ActionHandler do
   @impl CallbackHandler
   def handle_action({:reply, _message} = action, cb, _params, _state) do
     raise ActionError, action: action, reason: {:invalid_callback, cb}
+  end
+
+  @impl CallbackHandler
+  def handle_action({:clock_provider, child}, _cb, _params, state) do
+    ClockHandler.choose_clock(child, state)
+  end
+
+  @impl CallbackHandler
+  def handle_action(:reset_clock_provider, _cb, _params, state) do
+    ClockHandler.reset_clock(state)
   end
 
   @impl CallbackHandler
